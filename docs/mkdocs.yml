@@ -1,10 +1,24 @@
 site_name: Paper CLI
-
-theme:
-  name: readthedocs
+site_description: Documentation for Paper CLI tool.
+site_author: CHE3MZ
+repo_url: "https://github.com/CHE3MZ/paper-cli"
+site_url: https://che3mz.github.io/paper-cli/
 
 nav:
   - Paper CLI: index.md
   - Windows: windows.md
   - Macos: macos.md
   - Commands: commands.md
+
+extra_css:
+  - assets/dark-mode.css
+
+extra_javascript:
+  - assets/dark-mode.js
+
+theme:
+  name: null
+  custom_dir: theme
+  highlightjs: true
+  disable_nav_previous_next: true
+  disable_footer: true
