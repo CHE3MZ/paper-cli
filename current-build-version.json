@@ -1,0 +1,4 @@
+{   
+    "comment": "The current-build-path variable defines what the embeded path of the paper version is, since paper CLI is meant to be offline first, it has to bundle a version of paper MC in it so that it can deploy it locally",
+    "current-build-path": "paper-server/1.21.11"
+}
