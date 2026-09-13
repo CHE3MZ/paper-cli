@@ -1,11 +1,15 @@
 # Paper CLI
 
 Simple offline-first PaperMC server deployer. The `paper` binary bundles the
-whole Paper template from `current-build-version.json` → `current-build-path`
-(`paper.jar`, `libraries/`, `cache/`, `versions/`, `plugins/`, `eula.txt`,
-`server.properties`, ...) and deploys it with `paper new`, so new servers
-start with no downloads. Only `logs/` is excluded (the server regenerates
-it). Expect a ~240MB binary.
+Paper template from `current-build-version.json` → `current-build-path` as a
+single gzip-compressed tarball (`paper.jar`, `libraries/`, `cache/`,
+`eula.txt`, `server.properties`, ...) and `paper new` extracts it, so new
+servers start with no downloads. Server-regenerated output (`logs/`,
+`versions/`, `plugins/.paper-remapped`) is excluded — a boot recreates it,
+verified by test. Expect a ~177MB binary: the jars are already compressed,
+so gzip only saves ~3%; the real saving (~60MB) is skipping regenerable
+files. Compression is lossless (gzip CRC-checked): extraction is
+bit-identical or fails loudly.
 
 ## Build
 
@@ -16,9 +20,9 @@ powershell -ExecutionPolicy Bypass -File scripts/build.ps1
 sh scripts/build.sh
 ```
 
-The build reads `current-build-version.json`, mirrors that version's whole
-directory (minus `logs/`) via `go run ./src/genembed`, then outputs
-`build/paper` (`build/paper.exe`).
+The build reads `current-build-version.json`, packs that version's directory
+(minus regenerable output) into a `.tar.gz` via `go run ./src/genembed`,
+then outputs `build/paper` (`build/paper.exe`).
 
 ## Usage
 

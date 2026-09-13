@@ -2,18 +2,30 @@
 // current-build-version.json.
 //
 // It reads the "current-build-path" variable (e.g. "paper-server/1.21.11"),
-// mirrors that WHOLE directory into src/bundled/ (gitignored), and writes
-// src/embed_generated.go with a //go:embed directive for it. This is how the
-// "paper" binary is built using the path provided in
-// current-build-version.json: go:embed can only embed files inside the
+// packs that directory into src/bundled/bundle.tar.gz (gitignored, gzip
+// compression), and writes src/embed_generated.go embedding that single
+// archive. This is how the "paper" binary is built using the path provided
+// in current-build-version.json: go:embed can only embed files inside the
 // package directory, so the template is staged under src/bundled/ first; the
 // source of truth for WHICH version is staged stays
 // current-build-version.json.
 //
-// The full tree is bundled (paper.jar, libraries/, cache/, versions/,
-// plugins/, eula.txt, server.properties, ...) so `paper new` servers run
-// fully offline with no downloads. Only the top-level logs/ directory is
-// skipped: it holds runtime output that the server regenerates.
+// Size strategy (measured with gzip -9 on Paper 1.21.11):
+//   - paper.jar / cache/*.jar / libraries/*.jar are already zip-compressed,
+//     so gzip only shrinks them ~0-8%. Compression is still worth doing for
+//     the single-archive packaging, but it is NOT where the savings are.
+//   - The savings come from EXCLUDING server-regenerated output:
+//     top-level logs/ and versions/ (paperclip re-extracts the version jar
+//     from paper.jar on every boot) and plugins/.paper-remapped (plugin
+//     remapper cache, rebuilt as needed). This cuts ~60MB with no offline
+//     cost: `paper new` output plus one boot reproduces the full tree.
+// Everything else (paper.jar, libraries/, cache/, eula.txt,
+// server.properties, ...) is bundled, so new servers start with no
+// downloads.
+//
+// Compression is always lossless (gzip = deflate + CRC32): extraction yields
+// bit-identical files, and a corrupt archive fails the CRC check instead of
+// deploying bad data.
 //
 // Usage:
 //
@@ -21,13 +33,14 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -36,9 +49,21 @@ const versionFileName = "current-build-version.json"
 // stagedDir is relative to the repo root.
 const stagedDir = "src/bundled"
 
-// skippedTopDirs are top-level entries of the template dir that are NOT
-// bundled (runtime output the server regenerates on launch).
-var skippedTopDirs = map[string]bool{"logs": true}
+// archiveName is the single staged artifact embedded into the binary.
+const archiveName = "bundle.tar.gz"
+
+// skipRel reports whether a template-relative slash path is excluded from
+// the bundle because the server regenerates it on boot (see above).
+func skipRel(relSlash string) bool {
+	top := strings.Split(relSlash, "/")[0]
+	if top == "logs" || top == "versions" {
+		return true
+	}
+	if relSlash == "plugins/.paper-remapped" || strings.HasPrefix(relSlash, "plugins/.paper-remapped/") {
+		return true
+	}
+	return false
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -78,10 +103,8 @@ func run() error {
 		return fmt.Errorf("paper.jar not found at %s (from current-build-path=%q)", filepath.Join(absBuild, "paper.jar"), buildPathSlash)
 	}
 
-	// Stage the template inside the src package dir, because //go:embed can
+	// Stage the archive inside the src package dir, because //go:embed can
 	// only embed files in the package directory or subdirectories.
-	// Wipe the staging dir first so files removed from the template do not
-	// go stale.
 	stagedAbs := filepath.Join(root, filepath.FromSlash(stagedDir))
 	if err := os.RemoveAll(stagedAbs); err != nil {
 		return fmt.Errorf("clear %s: %w", stagedAbs, err)
@@ -89,64 +112,43 @@ func run() error {
 	if err := os.MkdirAll(stagedAbs, 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", stagedAbs, err)
 	}
-
-	var files int
-	var totalBytes int64
-	if err := mirrorTree(absBuild, stagedAbs, &files, &totalBytes); err != nil {
+	archivePath := filepath.Join(stagedAbs, archiveName)
+	out, err := os.Create(archivePath)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", archivePath, err)
+	}
+	gz, err := gzip.NewWriterLevel(out, gzip.BestCompression)
+	if err != nil {
+		out.Close()
 		return err
 	}
-
-	// Record dirs that are empty (embed drops empty dirs, so `paper new`
-	// recreates them explicitly).
-	var emptyDirs []string
-	err = filepath.WalkDir(stagedAbs, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() || p == stagedAbs {
-			return nil
-		}
-		entries, rerr := os.ReadDir(p)
-		if rerr != nil {
-			return rerr
-		}
-		if len(entries) == 0 {
-			rel, _ := filepath.Rel(stagedAbs, p)
-			emptyDirs = append(emptyDirs, filepath.ToSlash(rel))
-		}
-		return nil
-	})
+	tw := tar.NewWriter(gz)
+	files, totalBytes, err := writeBundle(absBuild, tw)
+	closeErr := tw.Close()
+	gzCloseErr := gz.Close()
+	outCloseErr := out.Close()
 	if err != nil {
-		return fmt.Errorf("scan staged dirs: %w", err)
+		return err
 	}
-	sort.Strings(emptyDirs)
+	for _, cerr := range []error{closeErr, gzCloseErr, outCloseErr} {
+		if cerr != nil {
+			return fmt.Errorf("finalize archive: %w", cerr)
+		}
+	}
+	st, _ := os.Stat(archivePath)
 
 	version := filepath.ToSlash(filepath.Base(buildPathSlash))
 
-	var emptyDirsGo string
-	if len(emptyDirs) == 0 {
-		emptyDirsGo = "var bundledEmptyDirs = []string{}"
-	} else {
-		quoted := make([]string, len(emptyDirs))
-		for i, d := range emptyDirs {
-			quoted[i] = fmt.Sprintf("%q", d)
-		}
-		emptyDirsGo = "var bundledEmptyDirs = []string{" + strings.Join(quoted, ", ") + "}"
-	}
-
-	// NOTE: the all: prefix is required so dot-dirs like
-	// plugins/.paper-remapped are embedded too (plain patterns skip
-	// names starting with . or _).
 	content := fmt.Sprintf(`// Code generated by src/genembed from %s. DO NOT EDIT.
 // Regenerate with: go run ./src/genembed
-// Source build path: %s (mirrored into src/bundled/ at build time;
-// top-level logs/ excluded as regenerable runtime output)
+// Source build path: %s (packed into src/bundled/%s at build time;
+// regenerable logs/, versions/ and plugins/.paper-remapped excluded)
 package src
 
-import "embed"
+import _ "embed"
 
-//go:embed all:bundled
-var bundledFS embed.FS
+//go:embed bundled/%s
+var bundledArchive []byte
 
 // EmbeddedBuildPath is the value of "current-build-path" the binary was built with.
 const EmbeddedBuildPath = %q
@@ -154,34 +156,41 @@ const EmbeddedBuildPath = %q
 // EmbeddedVersion is the base name of EmbeddedBuildPath (e.g. "1.21.11").
 const EmbeddedVersion = %q
 
-// EmbeddedFileCount is the number of template files bundled.
+// EmbeddedFileCount is the number of template files in the archive.
 const EmbeddedFileCount = %d
+
+// EmbeddedUncompressedBytes is the total size of the template files.
+const EmbeddedUncompressedBytes = %d
+
+// EmbeddedArchiveBytes is the compressed archive size.
+const EmbeddedArchiveBytes = %d
 
 // EmbeddedHasEula is true when the template dir contained an eula.txt at build time.
 const EmbeddedHasEula = %t
 
 // EmbeddedHasServerProps is true when the template dir contained a server.properties at build time.
 const EmbeddedHasServerProps = %t
-
-// bundledEmptyDirs lists template dirs that were empty at build time
-// (go:embed drops empty dirs, so paper new recreates these).
-%s
 `,
-		versionFileName, buildPathSlash, buildPathSlash, version, files, hasStaged(stagedAbs, "eula.txt"), hasStaged(stagedAbs, "server.properties"), emptyDirsGo,
+		versionFileName, buildPathSlash, archiveName, archiveName,
+		buildPathSlash, version, files, totalBytes, st.Size(),
+		hasTemplate(absBuild, "eula.txt"), hasTemplate(absBuild, "server.properties"),
 	)
 
 	outPath := filepath.Join(root, "src", "embed_generated.go")
 	if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", outPath, err)
 	}
-	fmt.Printf("genembed: mirrored %s (%d files, %.1f MB, version %s) -> src/bundled/ + src/embed_generated.go\n",
-		buildPathSlash, files, float64(totalBytes)/1048576, version)
+	fmt.Printf("genembed: packed %s (%d files, %.1f MB -> %.1f MB archive, version %s) -> src/bundled/%s\n",
+		buildPathSlash, files, float64(totalBytes)/1048576, float64(st.Size())/1048576, version, archiveName)
 	return nil
 }
 
-// mirrorTree copies absBuild into stagedAbs, skipping skippedTopDirs.
-func mirrorTree(absBuild, stagedAbs string, files *int, totalBytes *int64) error {
-	return filepath.WalkDir(absBuild, func(src string, d fs.DirEntry, err error) error {
+// writeBundle tars absBuild (minus skipped paths), preserving empty dirs as
+// explicit entries. It returns the file count and uncompressed byte total.
+func writeBundle(absBuild string, tw *tar.Writer) (int, int64, error) {
+	var files int
+	var totalBytes int64
+	err := filepath.WalkDir(absBuild, func(src string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -192,52 +201,52 @@ func mirrorTree(absBuild, stagedAbs string, files *int, totalBytes *int64) error
 		if rel == "." {
 			return nil
 		}
-		top := strings.Split(filepath.ToSlash(rel), "/")[0]
-		if skippedTopDirs[top] {
+		relSlash := filepath.ToSlash(rel)
+		if skipRel(relSlash) {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		dst := filepath.Join(stagedAbs, rel)
 		if d.IsDir() {
-			return os.MkdirAll(dst, 0o755)
+			return tw.WriteHeader(&tar.Header{
+				Name:     relSlash + "/",
+				Typeflag: tar.TypeDir,
+				Mode:     0o755,
+			})
 		}
-		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		if !d.Type().IsRegular() {
+			return fmt.Errorf("unsupported non-regular file in template: %s", src)
+		}
+		info, err := d.Info()
+		if err != nil {
 			return err
 		}
-		if err := copyFile(src, dst); err != nil {
+		if err := tw.WriteHeader(&tar.Header{
+			Name:     relSlash,
+			Typeflag: tar.TypeReg,
+			Mode:     0o644,
+			Size:     info.Size(),
+		}); err != nil {
 			return err
 		}
-		*files++
-		if st, serr := os.Stat(dst); serr == nil {
-			*totalBytes += st.Size()
+		f, err := os.Open(src)
+		if err != nil {
+			return err
 		}
+		if _, err := io.Copy(tw, f); err != nil {
+			f.Close()
+			return fmt.Errorf("archive %s: %w", src, err)
+		}
+		f.Close()
+		files++
+		totalBytes += info.Size()
 		return nil
 	})
+	return files, totalBytes, err
 }
 
-func hasStaged(stagedAbs, name string) bool {
-	_, err := os.Stat(filepath.Join(stagedAbs, name))
+func hasTemplate(absBuild, name string) bool {
+	_, err := os.Stat(filepath.Join(absBuild, name))
 	return err == nil
-}
-
-func copyFile(from, to string) error {
-	in, err := os.Open(from)
-	if err != nil {
-		return fmt.Errorf("open %s: %w", from, err)
-	}
-	defer in.Close()
-	out, err := os.Create(to)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", to, err)
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return fmt.Errorf("copy %s -> %s: %w", from, to, err)
-	}
-	if err := out.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", to, err)
-	}
-	return nil
 }

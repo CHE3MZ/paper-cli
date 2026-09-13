@@ -3,10 +3,14 @@
 package src
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"fmt"
-	"io/fs"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Version returns the bundled Paper version (e.g. "1.21.11").
@@ -16,66 +20,75 @@ func Version() string { return EmbeddedVersion }
 // (e.g. "paper-server/1.21.11/paper.jar").
 func BundledJarPath() string { return EmbeddedBuildPath + "/paper.jar" }
 
-// bundledFile reads a file from the staged embedded template.
-// name is the slash-separated path relative to the template root,
-// e.g. "paper.jar" or "libraries/com/mojang/authlib/7.0.61/authlib-7.0.61.jar".
-func bundledFile(name string) ([]byte, error) {
-	data, err := bundledFS.ReadFile("bundled/" + name)
+// ExtractBundled writes the whole embedded template archive (paper.jar,
+// libraries/, cache/, eula.txt, server.properties, ...) into dest, creating
+// directories as needed. The archive is gzip-compressed: decompression is
+// lossless (bit-identical files) and CRC-checked, so a corrupt bundle fails
+// here instead of deploying bad data. Files that already exist are
+// overwritten only when force is true; otherwise the first existing file
+// aborts with an error. It returns the number of files deployed.
+func ExtractBundled(dest string, force bool) (int, error) {
+	gr, err := gzip.NewReader(bytes.NewReader(bundledArchive))
 	if err != nil {
-		return nil, fmt.Errorf("embedded %s not found (built with %q): %w", name, EmbeddedBuildPath, err)
+		return 0, fmt.Errorf("embedded bundle is corrupt (built with %q): %w", EmbeddedBuildPath, err)
 	}
-	return data, nil
+	defer gr.Close()
+
+	var count int
+	tr := tar.NewReader(gr)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return count, fmt.Errorf("read embedded bundle (built with %q): %w", EmbeddedBuildPath, err)
+		}
+		if err := extractEntry(tr, hdr, dest, force); err != nil {
+			return count, err
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			count++
+		}
+	}
+	return count, nil
 }
 
-// BundledPaperJar returns the bytes of the embedded paper.jar.
-func BundledPaperJar() ([]byte, error) { return bundledFile("paper.jar") }
+func extractEntry(tr *tar.Reader, hdr *tar.Header, dest string, force bool) error {
+	// Reject absolute paths and .. escapes: entries must stay inside dest.
+	rel := filepath.FromSlash(filepath.Clean("/" + hdr.Name))
+	target, err := filepath.Abs(filepath.Join(dest, rel))
+	if err != nil {
+		return err
+	}
+	base, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+	if target != base && !strings.HasPrefix(target, base+string(filepath.Separator)) {
+		return fmt.Errorf("embedded bundle entry escapes target dir: %q", hdr.Name)
+	}
 
-// ExtractBundled writes the whole embedded template tree (paper.jar,
-// libraries/, cache/, versions/, plugins/, eula.txt, server.properties, ...)
-// into dest, creating directories as needed. Files that already exist are
-// overwritten only when force is true; otherwise the first existing file
-// aborts with an error.
-func ExtractBundled(dest string, force bool) (int, error) {
-	var count int
-	err := fs.WalkDir(bundledFS, "bundled", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if path == "bundled" {
-			return nil
-		}
-		rel, err := filepath.Rel("bundled", filepath.FromSlash(path))
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dest, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
+	switch hdr.Typeflag {
+	case tar.TypeDir:
+		return os.MkdirAll(target, 0o755)
+	case tar.TypeReg:
 		if _, serr := os.Stat(target); serr == nil && !force {
 			return fmt.Errorf("%s already exists (use --force to overwrite)", target)
-		}
-		data, rerr := bundledFS.ReadFile(path)
-		if rerr != nil {
-			return rerr
 		}
 		if merr := os.MkdirAll(filepath.Dir(target), 0o755); merr != nil {
 			return merr
 		}
-		if werr := os.WriteFile(target, data, 0o644); werr != nil {
-			return fmt.Errorf("write %s: %w", target, werr)
+		out, cerr := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+		if cerr != nil {
+			return cerr
 		}
-		count++
-		return nil
-	})
-	if err != nil {
-		return count, err
-	}
-	// Recreate dirs that were empty at build time (go:embed drops them).
-	for _, dir := range bundledEmptyDirs {
-		if merr := os.MkdirAll(filepath.Join(dest, filepath.FromSlash(dir)), 0o755); merr != nil {
-			return count, merr
+		if _, cerr := io.Copy(out, tr); cerr != nil {
+			out.Close()
+			return fmt.Errorf("write %s: %w", target, cerr)
 		}
+		return out.Close()
+	default:
+		return fmt.Errorf("unsupported entry in embedded bundle: %q", hdr.Name)
 	}
-	return count, nil
 }

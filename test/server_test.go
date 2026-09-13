@@ -41,18 +41,29 @@ func TestNewAndDeleteServer(t *testing.T) {
 		t.Fatal("paper.jar is empty")
 	}
 
-	// Offline bundle: the whole template tree must be deployed so the
-	// server starts with no downloads (libraries, caches, versions).
+	// Offline bundle: the template must be deployed so the server starts
+	// with no downloads (paper.jar, libraries, caches, configs).
 	for _, want := range []string{
+		"paper.jar",
 		"libraries",
 		"cache",
-		"versions",
 		"eula.txt",
 		"server.properties",
-		filepath.Join("plugins", ".paper-remapped"), // dot-dir: needs all: embed prefix
 	} {
 		if _, err := os.Stat(filepath.Join(srv, want)); err != nil {
 			t.Fatalf("expected bundled %q in new server: %v", want, err)
+		}
+	}
+	// Server-regenerated output is intentionally NOT bundled (the server
+	// recreates it on boot): versions/ (paperclip re-extracts the version
+	// jar from paper.jar), logs/, plugins/.paper-remapped (remapper cache).
+	for _, absent := range []string{
+		"versions",
+		"logs",
+		filepath.Join("plugins", ".paper-remapped"),
+	} {
+		if _, err := os.Stat(filepath.Join(srv, absent)); !os.IsNotExist(err) {
+			t.Fatalf("expected %q to be excluded from bundle, but it exists", absent)
 		}
 	}
 	if got := countFiles(t, srv); got != src.EmbeddedFileCount {
