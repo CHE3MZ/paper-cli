@@ -1,3 +1,5 @@
+![](docs/docs/images/logo.png)
+
 # Paper CLI
 
 Simple offline-first PaperMC server deployer. The `paper` binary bundles the
@@ -36,8 +38,10 @@ paper delete                 # delete everything but paper.jar (asks first)
 paper delete ./my-server --confirm
 ```
 
-Run flags: `--nogui`, `--memory=4gb` / `-m=512mb`, `--java=<path>`,
-`--dry-run`. Delete flag: `--confirm` / `-y`.
+Run flags: `--nogui`, `--memory, -m` (e.g. `--memory=4gb`, `-m=512mb`),
+`--optimized, -o` (4GB heap preset), `--java=<path>`, `--dry-run`.
+Delete flag: `--confirm, -y`. Colors auto-disable when piped;
+`PAPER_COLOR=1` forces them on, `NO_COLOR=1` forces them off.
 
 ## Layout
 
