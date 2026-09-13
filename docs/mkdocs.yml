@@ -1,0 +1,9 @@
+site_name: Paper CLI
+
+theme:
+  name: readthedocs
+
+nav:
+  - Paper CLI: index.md
+  - Windows: windows.md
+  - Macos: macos.md
