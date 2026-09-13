@@ -8,42 +8,42 @@ import (
 
 // HelpText is printed by `paper help` (and --help/-h).
 func HelpText() string {
-	return fmt.Sprintf(`paper - simple PaperMC server deployer (bundled Paper %s)
-
-Usage:
-  paper help                          prints this help text
-  paper new .                         creates a new paper server here (dot = current dir)
-  paper new PATH                      creates a new paper server at PATH
-  paper new [PATH] [--force]          overwrite an existing paper.jar
-
-  paper run                           runs paper in the current directory
-  paper run [PATH] [flags]            runs paper in PATH
-
-  paper delete                        deletes everything BUT paper.jar here (asks first)
-  paper delete [PATH] [--confirm]     deletes everything BUT paper.jar at PATH
-
-Run flags:
-  --nogui                 run as: java -jar paper.jar nogui
-  --memory=<n>[mb|gb]     limit heap, e.g. --memory=4gb or --memory=512mb
-  -m <n>[mb|gb]           shorthand for --memory (both -m=4gb and -m 4gb work)
-  --java=<path>           use a specific java binary
-  --dry-run               print the java command without running it
-
-Delete flags:
-  --confirm, -y           delete without asking for confirmation
-
-Examples:
-  paper new .
-  paper new ./my-server
-  paper run
-  paper run ./my-server --nogui -m=2gb
-  paper delete --confirm
-`, EmbeddedVersion)
+	b := &strings.Builder{}
+	title := bold(white("paper")) + gray(" — simple PaperMC server deployer (bundled Paper "+EmbeddedVersion+")")
+	fmt.Fprintln(b, title)
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, bold("Usage:"))
+	fmt.Fprintln(b, "  "+lightBlue("paper")+gray(" <command> [options]"))
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, bold("Commands:"))
+	fmt.Fprintln(b, "  "+lightBlue("paper help")+"                           "+gray("prints this help text"))
+	fmt.Fprintln(b, "  "+lightBlue("paper new")+gray(" . | PATH [--force]")+"         "+gray("creates a new paper server here or at PATH"))
+	fmt.Fprintln(b, "  "+lightBlue("paper run")+gray(" [PATH] [flags]")+"             "+gray("runs the server (current directory by default)"))
+	fmt.Fprintln(b, "  "+lightBlue("paper delete")+gray(" [PATH] [--confirm]")+"      "+gray("deletes everything but paper.jar (asks first)"))
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, bold("Run flags:"))
+	fmt.Fprintln(b, "  "+lightBlue("--nogui")+gray("                              run as: java -jar paper.jar nogui"))
+	fmt.Fprintln(b, "  "+lightBlue("--memory, -m")+gray(" <n>[mb|gb]              heap size, e.g. --memory=4gb or -m=512mb"))
+	fmt.Fprintln(b, "  "+lightBlue("--optimized, -o")+gray("                     preset: 4GB max heap (ignored if --memory is set)"))
+	fmt.Fprintln(b, "  "+lightBlue("--java")+gray(" <path>                        use a specific java binary"))
+	fmt.Fprintln(b, "  "+lightBlue("--dry-run")+gray("                           print the java command without running it"))
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, bold("Delete flags:"))
+	fmt.Fprintln(b, "  "+lightBlue("--confirm, -y")+gray("                        delete without asking for confirmation"))
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, bold("Examples:"))
+	fmt.Fprintln(b, "  "+lightBlue("paper new ."))
+	fmt.Fprintln(b, "  "+lightBlue("paper new ./my-server"))
+	fmt.Fprintln(b, "  "+lightBlue("paper run --nogui -m=2gb"))
+	fmt.Fprintln(b, "  "+lightBlue("paper run ./my-server -o"))
+	fmt.Fprintln(b, "  "+lightBlue("paper delete --confirm"))
+	return b.String()
 }
 
 // Run dispatches os.Args-style arguments (including program name).
 // It returns the process exit code.
 func Run(argv []string) int {
+	enableConsoleANSI()
 	args := argv[1:] // drop program name
 	if len(args) == 0 {
 		fmt.Print(HelpText())
@@ -66,9 +66,14 @@ func Run(argv []string) int {
 	case "delete":
 		return runDelete(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", args[0], HelpText())
+		fmt.Fprintf(os.Stderr, "%s unknown command %q\n\n%s", red("error:"), args[0], HelpText())
 		return 2
 	}
+}
+
+// errLine prints a red "error:" line to stderr.
+func errLine(err error) {
+	fmt.Fprintf(os.Stderr, "%s %v\n", red("error:"), err)
 }
 
 func runNew(args []string) int {
@@ -82,30 +87,30 @@ func runNew(args []string) int {
 			fmt.Print(HelpText())
 			return 0
 		case strings.HasPrefix(a, "-"):
-			fmt.Fprintf(os.Stderr, "unknown flag %q for `paper new`\n", a)
+			fmt.Fprintf(os.Stderr, "%s unknown flag %q for `paper new`\n", red("error:"), a)
 			return 2
 		default:
 			if pathArg != "" {
-				fmt.Fprintln(os.Stderr, "too many arguments for `paper new`: expected [PATH]")
+				fmt.Fprintln(os.Stderr, red("error:")+" too many arguments for `paper new`: expected [PATH]")
 				return 2
 			}
 			pathArg = a
 		}
 	}
 	if pathArg == "" {
-		fmt.Fprintln(os.Stderr, "usage: paper new . | paper new PATH")
+		fmt.Fprintln(os.Stderr, red("error:")+" usage: paper new . | paper new PATH")
 		return 2
 	}
 	dir, err := ResolveServerDir(pathArg)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		errLine(err)
 		return 1
 	}
 	if err := NewServer(dir, NewOptions{Force: force}); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		errLine(err)
 		return 1
 	}
-	fmt.Printf("created paper %s server in %s\n", EmbeddedVersion, dir)
+	fmt.Printf("%s paper %s server in %s\n", green("created"), EmbeddedVersion, lightBlue(dir))
 	return 0
 }
 
@@ -118,6 +123,8 @@ func runRun(args []string) int {
 		switch {
 		case a == "--nogui":
 			opts.NoGUI = true
+		case a == "--optimized" || a == "-o":
+			opts.Optimized = true
 		case a == "--dry-run":
 			opts.DryRun = true
 		case strings.HasPrefix(a, "--memory="):
@@ -145,11 +152,11 @@ func runRun(args []string) int {
 			fmt.Print(HelpText())
 			return 0
 		case strings.HasPrefix(a, "-") && a != "-":
-			fmt.Fprintf(os.Stderr, "unknown flag %q for `paper run`\n", a)
+			fmt.Fprintf(os.Stderr, "%s unknown flag %q for `paper run`\n", red("error:"), a)
 			return 2
 		default:
 			if pathArg != "" {
-				fmt.Fprintln(os.Stderr, "too many arguments for `paper run`: expected [PATH]")
+				fmt.Fprintln(os.Stderr, red("error:")+" too many arguments for `paper run`: expected [PATH]")
 				return 2
 			}
 			pathArg = a
@@ -158,11 +165,11 @@ func runRun(args []string) int {
 	}
 	dir, err := ResolveServerDir(pathArg) // empty => current directory
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		errLine(err)
 		return 1
 	}
 	if err := RunServer(dir, opts); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		errLine(err)
 		return 1
 	}
 	return 0
@@ -179,11 +186,11 @@ func runDelete(args []string) int {
 			fmt.Print(HelpText())
 			return 0
 		case strings.HasPrefix(a, "-"):
-			fmt.Fprintf(os.Stderr, "unknown flag %q for `paper delete`\n", a)
+			fmt.Fprintf(os.Stderr, "%s unknown flag %q for `paper delete`\n", red("error:"), a)
 			return 2
 		default:
 			if pathArg != "" {
-				fmt.Fprintln(os.Stderr, "too many arguments for `paper delete`: expected [PATH]")
+				fmt.Fprintln(os.Stderr, red("error:")+" too many arguments for `paper delete`: expected [PATH]")
 				return 2
 			}
 			pathArg = a
@@ -191,11 +198,11 @@ func runDelete(args []string) int {
 	}
 	dir, err := ResolveServerDir(pathArg) // empty => current directory
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		errLine(err)
 		return 1
 	}
 	if err := DeleteServer(dir, opts); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		errLine(err)
 		return 1
 	}
 	return 0

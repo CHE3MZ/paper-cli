@@ -55,6 +55,20 @@ func TestBuildJavaCommand(t *testing.T) {
 	}
 	assertContains(t, args, []string{"-Xmx512M", "-Xms512M"})
 
+	_, args, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Optimized: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertContains(t, args, []string{"-Xmx4G", "-Xms4G"})
+
+	// Explicit memory wins over --optimized.
+	_, args, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Optimized: true, Memory: "2gb"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertContains(t, args, []string{"-Xmx2G", "-Xms2G"})
+	assertNotContains(t, args, "-Xmx4G")
+
 	if _, _, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Memory: "bogus"}); err == nil {
 		t.Error("expected error for bad memory, got nil")
 	}

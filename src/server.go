@@ -90,7 +90,7 @@ func RunServer(dir string, opts RunOptions) error {
 		return err
 	}
 	if opts.DryRun {
-		fmt.Printf("(in %s)\n%s\n", dir, FormatCommand(javaBin, args))
+		fmt.Printf("%s\n%s\n", gray("(in "+dir+")"), lightBlue(FormatCommand(javaBin, args)))
 		return nil
 	}
 	cmd := exec.Command(javaBin, args...)
@@ -146,17 +146,17 @@ func DeleteServer(dir string, opts DeleteOptions) error {
 		victims = append(victims, filepath.Join(dir, e.Name()))
 	}
 	if len(victims) == 0 {
-		fmt.Fprintln(outOrStdout(opts.Stdout), "nothing to delete (only paper.jar remains).")
+		fmt.Fprintln(outOrStdout(opts.Stdout), gray("nothing to delete (only paper.jar remains)."))
 		return nil
 	}
 	sort.Strings(victims)
 	if !opts.Confirm {
-		fmt.Fprintf(outOrStdout(opts.Stdout), "Delete %d file(s) in %s (keeping paper.jar)? [y/N]: ", len(victims), dir)
+		fmt.Fprintf(outOrStdout(opts.Stdout), "%s", bold(white(fmt.Sprintf("Delete %d file(s) in %s (keeping paper.jar)? [y/N]: ", len(victims), dir))))
 		reader := bufio.NewReader(inOrStdin(opts.Stdin))
 		line, _ := reader.ReadString('\n')
 		line = strings.TrimSpace(strings.ToLower(line))
 		if line != "y" && line != "yes" {
-			fmt.Fprintln(outOrStdout(opts.Stdout), "aborted.")
+			fmt.Fprintln(outOrStdout(opts.Stdout), gray("aborted."))
 			return nil
 		}
 	}
@@ -165,7 +165,7 @@ func DeleteServer(dir string, opts DeleteOptions) error {
 			return fmt.Errorf("delete %s: %w", v, err)
 		}
 	}
-	fmt.Fprintf(outOrStdout(opts.Stdout), "deleted %d file(s), kept %s.\n", len(victims), jarName)
+	fmt.Fprintf(outOrStdout(opts.Stdout), "%s\n", green(fmt.Sprintf("deleted %d file(s), kept %s.", len(victims), jarName)))
 	return nil
 }
 

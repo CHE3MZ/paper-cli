@@ -13,6 +13,8 @@ type RunOptions struct {
 	NoGUI bool
 	// Memory is the raw user input, e.g. "4gb", "512mb". Empty = no limit flags.
 	Memory string
+	// Optimized is a preset for Memory="4gb" when no explicit Memory is set.
+	Optimized bool
 	// Java is an optional override for the java binary. Empty = auto-detect.
 	Java string
 	// DryRun prints the resolved command without executing it.
@@ -22,6 +24,9 @@ type RunOptions struct {
 }
 
 var memPattern = regexp.MustCompile(`(?i)^\s*(\d+)\s*(m|mb|g|gb)?\s*$`)
+
+// OptimizedMemory is the heap preset applied by `paper run --optimized`.
+const OptimizedMemory = "4gb"
 
 // NormalizeMemory validates user input like "4gb", "512mb", "1024", "2G" and
 // returns it in java -Xmx form ("4G", "512M"). Empty input returns "".
@@ -67,7 +72,11 @@ func BuildJavaCommand(javaBin, dir string, opts RunOptions) (bin string, args []
 	if err != nil {
 		return "", nil, err
 	}
-	mem, err := NormalizeMemory(opts.Memory)
+	mem := opts.Memory
+	if mem == "" && opts.Optimized {
+		mem = OptimizedMemory // explicit --memory always wins over --optimized
+	}
+	mem, err = NormalizeMemory(mem)
 	if err != nil {
 		return "", nil, err
 	}

@@ -135,7 +135,7 @@ func TestDeleteServerConfirmation_Abort(t *testing.T) {
 
 func TestHelpTextCoversCommands(t *testing.T) {
 	help := src.HelpText()
-	for _, want := range []string{"paper new", "paper run", "paper delete", "paper help", "--nogui", "--memory", "--confirm"} {
+	for _, want := range []string{"paper new", "paper run", "paper delete", "paper help", "--nogui", "--memory", "-m", "--optimized", "-o", "--confirm", "-y"} {
 		if !strings.Contains(help, want) {
 			t.Errorf("help text missing %q", want)
 		}

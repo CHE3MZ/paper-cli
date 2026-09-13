@@ -19,6 +19,7 @@
 //     from paper.jar on every boot) and plugins/.paper-remapped (plugin
 //     remapper cache, rebuilt as needed). This cuts ~60MB with no offline
 //     cost: `paper new` output plus one boot reproduces the full tree.
+//
 // Everything else (paper.jar, libraries/, cache/, eula.txt,
 // server.properties, ...) is bundled, so new servers start with no
 // downloads.
