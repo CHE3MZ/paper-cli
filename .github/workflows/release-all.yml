@@ -1,6 +1,8 @@
-name: release-macos
+name: release-all
 
 # Manual only: run from the Actions tab ("Run workflow").
+# Builds paper for macOS, Windows and Linux, then publishes one
+# GitHub Release containing all three binaries.
 on:
   workflow_dispatch:
     inputs:
@@ -22,26 +24,14 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: macos-14
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history + tags, needed to compute the next version
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Test
-        run: go test ./...
-
-      - name: Build
-        run: sh scripts/build.sh
-
-      - name: Rename binary
-        run: mv build/paper build/paper-macos
 
       - name: Determine version
         id: version
@@ -83,12 +73,72 @@ jobs:
           echo "releasing: $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+  build:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            asset: paper-macos
+            src: build/paper
+            build: sh scripts/build.sh
+          - os: windows-latest
+            asset: paper-windows.exe
+            src: build/paper.exe
+            build: powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+          - os: ubuntu-latest
+            asset: paper-linux
+            src: build/paper
+            build: sh scripts/build.sh
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Generate bundle
+        run: go run ./src/genembed
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: ${{ matrix.build }}
+
+      - name: Rename binary
+        run: mv "${{ matrix.src }}" "build/${{ matrix.asset }}"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: build/${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so release notes can be generated
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TAG='${{ steps.version.outputs.tag }}'
+          TAG='${{ needs.version.outputs.tag }}'
           git tag "$TAG"
           git push origin "$TAG"
-          gh release create "$TAG" --title "$TAG" --generate-notes build/paper-macos
+          gh release create "$TAG" --title "$TAG" --generate-notes \
+            dist/paper-macos/paper-macos \
+            dist/paper-windows/paper-windows.exe \
+            dist/paper-linux/paper-linux

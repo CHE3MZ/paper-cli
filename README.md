@@ -21,7 +21,9 @@ sh scripts/build.sh
 ```
 
 Needs the [Go toolchain](https://go.dev/dl/) plus Java 21+ to actually run
-servers. Full guides per platform, the command reference, and developer
+servers. The build scripts run the embed generator first; plain
+`go build`/`go test` on a fresh clone need `go run ./src/genembed` first.
+Full guides per platform, the command reference, and developer
 docs are in **`docs/`** (mkdocs project, published as the project site).
 
 Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).

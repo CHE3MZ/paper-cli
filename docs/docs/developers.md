@@ -115,7 +115,8 @@ at the top plus the six one-line helpers.
 ## Testing
 
 ```
-go test ./test/...
+go run ./src/genembed   # required once per fresh clone: stages the bundle
+go test ./test/...      # without it, nothing compiles (go:embed needs the file)
 ```
 
 Tests live in `test/` and cover memory parsing, command building, and a

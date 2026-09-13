@@ -27,6 +27,9 @@ to save two lines, we'd rather have the two lines.
 
 ## Before you open a pull request
 
+- [ ] On a fresh clone, run `go run ./src/genembed` first — nothing
+      (`go build`, `go test`, `go vet`) compiles without the generated
+      bundle it stages
 - [ ] `go test ./test/...` passes
 - [ ] You rebuilt once (`scripts/build.ps1` or `scripts/build.sh`) so the
       embed step (`genembed`) is happy with your changes

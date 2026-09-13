@@ -19,6 +19,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Generate bundle
+        run: go run ./src/genembed
+
       - name: Test
         run: go test ./...
 
