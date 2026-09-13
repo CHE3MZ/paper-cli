@@ -93,3 +93,5 @@ pre-accepts it in `eula.txt` so the server starts right away. The full
 attribution, the GPL copy, and the redistribution tradeoff of the offline
 bundle are documented in `NOTICE.md` in the repo. This project isn't
 affiliated with Mojang, Microsoft, or PaperMC.
+
+<img src="images/logo-small.png" alt="Paper logo small" width="96" />

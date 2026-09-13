@@ -34,3 +34,5 @@ The binary bundles third-party software (PaperMC under GPL-3.0, Minecraft
 server files under Mojang's EULA) — see [NOTICE.md](NOTICE.md), including
 the GPL copy at [LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt). Running a
 server means you accept the [Minecraft EULA](https://aka.ms/MinecraftEULA).
+
+<img src="docs/docs/images/logo-small.png" alt="Paper logo small" width="96" />
