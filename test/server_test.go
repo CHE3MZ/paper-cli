@@ -36,7 +36,10 @@ func TestNewAndDeleteServer(t *testing.T) {
 	if !src.IsPaperServer(srv) {
 		t.Fatal("expected paper.jar after NewServer")
 	}
-	jarInfo, _ := os.Stat(filepath.Join(srv, "paper.jar"))
+	jarInfo, err := os.Stat(filepath.Join(srv, "paper.jar"))
+	if err != nil {
+		t.Fatalf("stat paper.jar: %v", err)
+	}
 	if jarInfo.Size() == 0 {
 		t.Fatal("paper.jar is empty")
 	}
@@ -98,7 +101,10 @@ func TestNewAndDeleteServer(t *testing.T) {
 	if !src.IsPaperServer(srv) {
 		t.Fatal("paper.jar must survive DeleteServer")
 	}
-	entries, _ := os.ReadDir(srv)
+	entries, err := os.ReadDir(srv)
+	if err != nil {
+		t.Fatalf("read %s: %v", srv, err)
+	}
 	if len(entries) != 1 || entries[0].Name() != "paper.jar" {
 		names := []string{}
 		for _, e := range entries {
