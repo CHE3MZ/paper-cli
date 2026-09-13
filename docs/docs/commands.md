@@ -1,6 +1,8 @@
 # here are all the commands paper CLI supports.
 
 ```rs
+paper help // prints the help text.
+
 paper new . // creates a new paper server in the current location , make sure to include the dot
 paper new PATH // creates a new paper server at the given location
 
