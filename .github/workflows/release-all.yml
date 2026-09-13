@@ -79,14 +79,17 @@ jobs:
       matrix:
         include:
           - os: macos-14
+            artifact: paper-macos
             asset: paper-macos
             src: build/paper
             build: sh scripts/build.sh
           - os: windows-latest
+            artifact: paper-windows
             asset: paper-windows.exe
             src: build/paper.exe
             build: powershell -ExecutionPolicy Bypass -File scripts/build.ps1
           - os: ubuntu-latest
+            artifact: paper-linux
             asset: paper-linux
             src: build/paper
             build: sh scripts/build.sh
@@ -109,12 +112,13 @@ jobs:
         run: ${{ matrix.build }}
 
       - name: Rename binary
+        shell: bash
         run: mv "${{ matrix.src }}" "build/${{ matrix.asset }}"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset }}
+          name: ${{ matrix.artifact }}
           path: build/${{ matrix.asset }}
           if-no-files-found: error
 
