@@ -5,10 +5,11 @@ repo_url: "https://github.com/CHE3MZ/paper-cli"
 site_url: https://che3mz.github.io/paper-cli/
 
 nav:
-  - Paper CLI: index.md
-  - Windows: windows.md
-  - Macos: macos.md
-  - Commands: commands.md
+  - Home: index.md
+  - Getting Started:
+    - Windows: windows.md
+    - MacOS: macos.md
+  - Contributing: contribution.md
 
 extra_css:
   - assets/dark-mode.css

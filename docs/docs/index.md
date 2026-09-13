@@ -1,4 +1,4 @@
 # Welcome to Paper MC cli
 
-### check out the windows guide [here](windows.md)
-### check out the macos guide [here](windows.md)
+#### Check out the Windows guide [here](windows.md)
+#### Check out the MacOS guide [here](windows.md)
