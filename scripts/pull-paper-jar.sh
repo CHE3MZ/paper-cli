@@ -50,3 +50,12 @@ cat <<EOF > eula.txt
 #By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
 eula=true
 EOF
+
+# Trim server-regenerated output that paper-cli does not bundle: versions/
+# (re-extracted from paper.jar on boot), logs/ (recreated on launch) and
+# plugins/.paper-remapped/ (remapper cache, rebuilt as needed). New servers
+# recreate all of these on first boot.
+echo "Removing regenerable files not bundled by paper-cli..."
+rm -rf versions logs plugins/.paper-remapped
+mkdir -p plugins
+echo "Template ready."
