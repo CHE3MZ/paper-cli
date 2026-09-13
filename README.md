@@ -24,6 +24,8 @@ Needs the [Go toolchain](https://go.dev/dl/) plus Java 21+ to actually run
 servers. Full guides per platform, the command reference, and developer
 docs are in **`docs/`** (mkdocs project, published as the project site).
 
+Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 # License
 
 Paper CLI's own code is licensed under the [MIT License](LICENSE).
