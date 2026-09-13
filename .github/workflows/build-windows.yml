@@ -1,0 +1,33 @@
+name: build-windows
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-windows
+          path: build/paper.exe
+          if-no-files-found: error
