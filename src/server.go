@@ -2,9 +2,9 @@ package src
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -52,8 +52,8 @@ type NewOptions struct {
 }
 
 // NewServer deploys the full embedded template (paper.jar, libraries/,
-// cache/, versions/, plugins/, eula.txt, server.properties, ...) into dir,
-// so the server runs fully offline with no downloads.
+// cache/, eula.txt, server.properties, ...) into dir, so the server runs
+// fully offline with no downloads.
 func NewServer(dir string, opts NewOptions) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create directory %s: %w", dir, err)
@@ -85,7 +85,7 @@ func RunServer(dir string, opts RunOptions) error {
 	if !IsPaperServer(dir) {
 		return fmt.Errorf("no paper.jar found in %s (run `paper new %s` first)", dir, dirLabel(dir))
 	}
-	javaBin, args, err := BuildJavaCommand("", dir, opts)
+	javaBin, args, err := BuildJavaCommand("", opts)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,8 @@ func RunServer(dir string, opts RunOptions) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
 			return fmt.Errorf("server exited with code %d", exit.ExitCode())
 		}
 		return fmt.Errorf("run server: %w", err)
@@ -146,18 +147,21 @@ func DeleteServer(dir string, opts DeleteOptions) error {
 		victims = append(victims, filepath.Join(dir, e.Name()))
 	}
 	if len(victims) == 0 {
-		fmt.Fprintln(outOrStdout(opts.Stdout), gray("nothing to delete (only paper.jar remains)."))
-		return nil
+		_, err := fmt.Fprintln(outOrStdout(opts.Stdout), gray("nothing to delete (only paper.jar remains)."))
+		return err
 	}
 	sort.Strings(victims)
 	if !opts.Confirm {
-		fmt.Fprintf(outOrStdout(opts.Stdout), "%s", bold(white(fmt.Sprintf("Delete %d file(s) in %s (keeping paper.jar)? [y/N]: ", len(victims), dir))))
+		_, err := fmt.Fprintf(outOrStdout(opts.Stdout), "%s", bold(white(fmt.Sprintf("Delete %d file(s) in %s (keeping paper.jar)? [y/N]: ", len(victims), dir))))
+		if err != nil {
+			return err
+		}
 		reader := bufio.NewReader(inOrStdin(opts.Stdin))
 		line, _ := reader.ReadString('\n')
 		line = strings.TrimSpace(strings.ToLower(line))
 		if line != "y" && line != "yes" {
-			fmt.Fprintln(outOrStdout(opts.Stdout), gray("aborted."))
-			return nil
+			_, err := fmt.Fprintln(outOrStdout(opts.Stdout), gray("aborted."))
+			return err
 		}
 	}
 	for _, v := range victims {
@@ -165,27 +169,8 @@ func DeleteServer(dir string, opts DeleteOptions) error {
 			return fmt.Errorf("delete %s: %w", v, err)
 		}
 	}
-	fmt.Fprintf(outOrStdout(opts.Stdout), "%s\n", green(fmt.Sprintf("deleted %d file(s), kept %s.", len(victims), jarName)))
-	return nil
-}
-
-// WalkDeletable lists what DeleteServer would remove (used by tests/docs).
-func WalkDeletable(dir string) ([]string, error) {
-	var out []string
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if p == dir || filepath.Base(p) == jarName && filepath.Dir(p) == dir {
-			return nil
-		}
-		// Only top-level entries matter for the report.
-		if filepath.Dir(p) == dir {
-			out = append(out, p)
-		}
-		return nil
-	})
-	return out, err
+	_, err = fmt.Fprintf(outOrStdout(opts.Stdout), "%s\n", green(fmt.Sprintf("deleted %d file(s), kept %s.", len(victims), jarName)))
+	return err
 }
 
 func inOrStdin(r io.Reader) io.Reader {

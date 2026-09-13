@@ -65,10 +65,13 @@ func ResolveJava(override string) (string, error) {
 }
 
 // BuildJavaCommand builds the process invocation for a server directory.
-// It always runs `java -jar paper.jar` inside dir; memory adds matching
-// -Xms/-Xmx flags; nogui appends "nogui".
-func BuildJavaCommand(javaBin, dir string, opts RunOptions) (bin string, args []string, err error) {
-	javaBin, err = ResolveJava(javaBinOrOverride(javaBin, opts))
+// It always runs `java -jar paper.jar`; memory adds matching -Xms/-Xmx
+// flags; nogui appends "nogui".
+func BuildJavaCommand(javaBin string, opts RunOptions) (string, []string, error) {
+	if opts.Java != "" {
+		javaBin = opts.Java
+	}
+	javaBin, err := ResolveJava(javaBin)
 	if err != nil {
 		return "", nil, err
 	}
@@ -80,7 +83,7 @@ func BuildJavaCommand(javaBin, dir string, opts RunOptions) (bin string, args []
 	if err != nil {
 		return "", nil, err
 	}
-	args = []string{}
+	args := []string{}
 	if mem != "" {
 		args = append(args, "-Xms"+mem, "-Xmx"+mem)
 	}
@@ -89,15 +92,7 @@ func BuildJavaCommand(javaBin, dir string, opts RunOptions) (bin string, args []
 		args = append(args, "nogui")
 	}
 	args = append(args, opts.ExtraArgs...)
-	_ = dir
 	return javaBin, args, nil
-}
-
-func javaBinOrOverride(javaBin string, opts RunOptions) string {
-	if opts.Java != "" {
-		return opts.Java
-	}
-	return javaBin
 }
 
 // FormatCommand renders a command for --dry-run / help output.

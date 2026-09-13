@@ -36,43 +36,42 @@ func TestNormalizeMemory(t *testing.T) {
 }
 
 func TestBuildJavaCommand(t *testing.T) {
-	bin, args, err := src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{})
+	_, args, err := src.BuildJavaCommand("java", src.RunOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertContains(t, args, []string{"-jar", "paper.jar"})
 	assertNotContains(t, args, "nogui")
 
-	_, args, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{NoGUI: true, Memory: "4gb"})
+	_, args, err = src.BuildJavaCommand("java", src.RunOptions{NoGUI: true, Memory: "4gb"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertContains(t, args, []string{"-Xmx4G", "-Xms4G", "-jar", "paper.jar", "nogui"})
 
-	_, args, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Memory: "512mb"})
+	_, args, err = src.BuildJavaCommand("java", src.RunOptions{Memory: "512mb"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertContains(t, args, []string{"-Xmx512M", "-Xms512M"})
 
-	_, args, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Optimized: true})
+	_, args, err = src.BuildJavaCommand("java", src.RunOptions{Optimized: true})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertContains(t, args, []string{"-Xmx4G", "-Xms4G"})
 
 	// Explicit memory wins over --optimized.
-	_, args, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Optimized: true, Memory: "2gb"})
+	_, args, err = src.BuildJavaCommand("java", src.RunOptions{Optimized: true, Memory: "2gb"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertContains(t, args, []string{"-Xmx2G", "-Xms2G"})
 	assertNotContains(t, args, "-Xmx4G")
 
-	if _, _, err = src.BuildJavaCommand("java", "/tmp/srv", src.RunOptions{Memory: "bogus"}); err == nil {
+	if _, _, err = src.BuildJavaCommand("java", src.RunOptions{Memory: "bogus"}); err == nil {
 		t.Error("expected error for bad memory, got nil")
 	}
-	_ = bin
 }
 
 func assertContains(t *testing.T, args, want []string) {

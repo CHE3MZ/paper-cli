@@ -18,7 +18,7 @@ func enableConsoleANSI() {
 	const enableVT = 0x4
 
 	h, _, _ := getHandle.Call(stdOutputHandle)
-	if h == 0 {
+	if h == 0 || h == ^uintptr(0) { // NULL or INVALID_HANDLE_VALUE
 		return
 	}
 	var mode uint32
@@ -26,5 +26,6 @@ func enableConsoleANSI() {
 	if r == 0 {
 		return
 	}
-	setMode.Call(h, uintptr(mode|enableVT))
+	// Best effort: a failed call just means plain output.
+	_, _, _ = setMode.Call(h, uintptr(mode|enableVT))
 }

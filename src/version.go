@@ -13,13 +13,6 @@ import (
 	"strings"
 )
 
-// Version returns the bundled Paper version (e.g. "1.21.11").
-func Version() string { return EmbeddedVersion }
-
-// BundledJarPath returns the repo-relative source of paper.jar
-// (e.g. "paper-server/1.21.11/paper.jar").
-func BundledJarPath() string { return EmbeddedBuildPath + "/paper.jar" }
-
 // ExtractBundled writes the whole embedded template archive (paper.jar,
 // libraries/, cache/, eula.txt, server.properties, ...) into dest, creating
 // directories as needed. The archive is gzip-compressed: decompression is
@@ -32,7 +25,6 @@ func ExtractBundled(dest string, force bool) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("embedded bundle is corrupt (built with %q): %w", EmbeddedBuildPath, err)
 	}
-	defer gr.Close()
 
 	var count int
 	tr := tar.NewReader(gr)
@@ -42,14 +34,21 @@ func ExtractBundled(dest string, force bool) (int, error) {
 			break
 		}
 		if err != nil {
+			_ = gr.Close()
 			return count, fmt.Errorf("read embedded bundle (built with %q): %w", EmbeddedBuildPath, err)
 		}
 		if err := extractEntry(tr, hdr, dest, force); err != nil {
+			_ = gr.Close()
 			return count, err
 		}
 		if hdr.Typeflag == tar.TypeReg {
 			count++
 		}
+	}
+	// Close verifies the gzip trailer CRC: this is what turns a corrupt
+	// bundle into an error instead of silently deployed bad data.
+	if err := gr.Close(); err != nil {
+		return count, fmt.Errorf("embedded bundle is corrupt (built with %q): %w", EmbeddedBuildPath, err)
 	}
 	return count, nil
 }
@@ -84,7 +83,7 @@ func extractEntry(tr *tar.Reader, hdr *tar.Header, dest string, force bool) erro
 			return cerr
 		}
 		if _, cerr := io.Copy(out, tr); cerr != nil {
-			out.Close()
+			_ = out.Close() // error already in hand; close cannot add anything
 			return fmt.Errorf("write %s: %w", target, cerr)
 		}
 		return out.Close()

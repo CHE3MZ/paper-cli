@@ -120,7 +120,7 @@ func run() error {
 	}
 	gz, err := gzip.NewWriterLevel(out, gzip.BestCompression)
 	if err != nil {
-		out.Close()
+		_ = out.Close() // nothing written yet; the error in hand is the one that matters
 		return err
 	}
 	tw := tar.NewWriter(gz)
@@ -136,7 +136,10 @@ func run() error {
 			return fmt.Errorf("finalize archive: %w", cerr)
 		}
 	}
-	st, _ := os.Stat(archivePath)
+	st, err := os.Stat(archivePath)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", archivePath, err)
+	}
 
 	version := filepath.ToSlash(filepath.Base(buildPathSlash))
 
@@ -236,10 +239,12 @@ func writeBundle(absBuild string, tw *tar.Writer) (int, int64, error) {
 			return err
 		}
 		if _, err := io.Copy(tw, f); err != nil {
-			f.Close()
+			_ = f.Close() // error already in hand; close cannot add anything
 			return fmt.Errorf("archive %s: %w", src, err)
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("archive %s: %w", src, err)
+		}
 		files++
 		totalBytes += info.Size()
 		return nil

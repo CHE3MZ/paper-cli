@@ -83,7 +83,8 @@ then `-jar paper.jar`, then `nogui`. `--optimized` just fills in `4gb`
 when no explicit memory was given — explicit flags always win.
 
 **version.go** — `ExtractBundled` (tar.gz extraction with the safety checks
-above) plus small helpers like `Version()` and `BundledJarPath()`.
+above). The `Embedded*` constants next to it record what the binary was
+built with (build path, version, file count, sizes).
 
 **style.go, console_windows.go, console_other.go** — Bold/white/light
 blue/gray/green/red paint functions. Windows consoles need virtual-terminal
