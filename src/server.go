@@ -51,7 +51,9 @@ type NewOptions struct {
 	Force bool
 }
 
-// NewServer deploys the embedded paper.jar (+ template defaults) into dir.
+// NewServer deploys the full embedded template (paper.jar, libraries/,
+// cache/, versions/, plugins/, eula.txt, server.properties, ...) into dir,
+// so the server runs fully offline with no downloads.
 func NewServer(dir string, opts NewOptions) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create directory %s: %w", dir, err)
@@ -61,39 +63,16 @@ func NewServer(dir string, opts NewOptions) error {
 		return fmt.Errorf("paper.jar already exists in %s (use --force to overwrite)", dir)
 	}
 
-	jarBytes, err := BundledPaperJar()
-	if err != nil {
+	if _, err := ExtractBundled(dir, opts.Force); err != nil {
 		return err
 	}
-	if err := os.WriteFile(jarDest, jarBytes, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", jarDest, err)
-	}
 
-	// eula.txt: prefer the embedded template, fall back to defaultEula.
+	// Safety net: if the template had no eula.txt, write a pre-accepted one
+	// so `paper run` works immediately offline.
 	eulaDest := filepath.Join(dir, "eula.txt")
-	if _, err := os.Stat(eulaDest); os.IsNotExist(err) || opts.Force {
-		var eula []byte
-		if EmbeddedHasEula {
-			if b, rerr := bundledFile("eula.txt"); rerr == nil {
-				eula = b
-			}
-		}
-		if eula == nil {
-			eula = []byte(defaultEula)
-		}
-		if werr := os.WriteFile(eulaDest, eula, 0o644); werr != nil {
+	if _, err := os.Stat(eulaDest); os.IsNotExist(err) {
+		if werr := os.WriteFile(eulaDest, []byte(defaultEula), 0o644); werr != nil {
 			return fmt.Errorf("write %s: %w", eulaDest, werr)
-		}
-	}
-
-	// server.properties: only from the embedded template when present and
-	// missing in the target (first run of the jar generates it otherwise).
-	propsDest := filepath.Join(dir, "server.properties")
-	if EmbeddedHasServerProps {
-		if _, err := os.Stat(propsDest); os.IsNotExist(err) {
-			if b, rerr := bundledFile("server.properties"); rerr == nil {
-				_ = os.WriteFile(propsDest, b, 0o644)
-			}
 		}
 	}
 

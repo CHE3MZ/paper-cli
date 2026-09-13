@@ -41,6 +41,24 @@ func TestNewAndDeleteServer(t *testing.T) {
 		t.Fatal("paper.jar is empty")
 	}
 
+	// Offline bundle: the whole template tree must be deployed so the
+	// server starts with no downloads (libraries, caches, versions).
+	for _, want := range []string{
+		"libraries",
+		"cache",
+		"versions",
+		"eula.txt",
+		"server.properties",
+		filepath.Join("plugins", ".paper-remapped"), // dot-dir: needs all: embed prefix
+	} {
+		if _, err := os.Stat(filepath.Join(srv, want)); err != nil {
+			t.Fatalf("expected bundled %q in new server: %v", want, err)
+		}
+	}
+	if got := countFiles(t, srv); got != src.EmbeddedFileCount {
+		t.Fatalf("deployed %d files, embedded %d", got, src.EmbeddedFileCount)
+	}
+
 	// Second new without --force must fail.
 	if err := src.NewServer(srv, src.NewOptions{}); err == nil {
 		t.Fatal("expected error on duplicate NewServer without force")
@@ -111,4 +129,22 @@ func TestHelpTextCoversCommands(t *testing.T) {
 			t.Errorf("help text missing %q", want)
 		}
 	}
+}
+
+func countFiles(t *testing.T, dir string) int {
+	t.Helper()
+	var n int
+	err := filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			n++
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
 }

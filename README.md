@@ -1,8 +1,11 @@
 # Paper CLI
 
-Simple offline-first PaperMC server deployer. The `paper` binary bundles a
-Paper jar (see `current-build-version.json` → `current-build-path`) and
-deploys it with `paper new`.
+Simple offline-first PaperMC server deployer. The `paper` binary bundles the
+whole Paper template from `current-build-version.json` → `current-build-path`
+(`paper.jar`, `libraries/`, `cache/`, `versions/`, `plugins/`, `eula.txt`,
+`server.properties`, ...) and deploys it with `paper new`, so new servers
+start with no downloads. Only `logs/` is excluded (the server regenerates
+it). Expect a ~240MB binary.
 
 ## Build
 
@@ -13,9 +16,9 @@ powershell -ExecutionPolicy Bypass -File scripts/build.ps1
 sh scripts/build.sh
 ```
 
-The build reads `current-build-version.json`, stages that version's
-`paper.jar` (+ `eula.txt` / `server.properties` when present) via
-`go run ./src/genembed`, then outputs `build/paper` (`build/paper.exe`).
+The build reads `current-build-version.json`, mirrors that version's whole
+directory (minus `logs/`) via `go run ./src/genembed`, then outputs
+`build/paper` (`build/paper.exe`).
 
 ## Usage
 
