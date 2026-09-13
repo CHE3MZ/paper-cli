@@ -83,3 +83,13 @@ also keeps the binary smaller (~177MB instead of ~244MB).
 
 Want to know how all of this is put together? The
 [Developers](developers.md) page walks through the source file by file.
+
+## Legal in brief
+
+Your servers run PaperMC (GPL-3.0) and Mojang's server code (proprietary).
+Running one means you accept the
+[Minecraft EULA](https://aka.ms/MinecraftEULA) — note that `paper new`
+pre-accepts it in `eula.txt` so the server starts right away. The full
+attribution, the GPL copy, and the redistribution tradeoff of the offline
+bundle are documented in `NOTICE.md` in the repo. This project isn't
+affiliated with Mojang, Microsoft, or PaperMC.

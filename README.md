@@ -26,6 +26,9 @@ docs are in **`docs/`** (mkdocs project, published as the project site).
 
 # License
 
-**See [the paper MC project license here](https://github.com/PaperMC/Paper/blob/main/LICENSE.md)**
+Paper CLI's own code is licensed under the [MIT License](LICENSE).
 
-Paper CLI itself is licensed under the [MIT License](LICENSE).
+The binary bundles third-party software (PaperMC under GPL-3.0, Minecraft
+server files under Mojang's EULA) — see [NOTICE.md](NOTICE.md), including
+the GPL copy at [LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt). Running a
+server means you accept the [Minecraft EULA](https://aka.ms/MinecraftEULA).
