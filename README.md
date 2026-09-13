@@ -50,3 +50,9 @@ Delete flag: `--confirm, -y`. Colors auto-disable when piped;
 - `src/genembed/` — build-time generator (JSON → staged embed)
 - `test/` — `go test ./test/...`
 - `build/` — build output (gitignored)
+
+# License
+
+**See [the paper MC project license here](https://github.com/PaperMC/Paper/blob/main/LICENSE.md)**
+
+Paper CLI itself is licensed under the [MIT License](LICENSE).
