@@ -11,6 +11,14 @@ downloads, no installers, no browser.
 If you just want to run a server, you only need three commands. Everything
 else in these docs is detail you can read when you need it.
 
+## Install
+
+```
+install\windows.bat
+sh install/macos.sh  # macOS -> ~/.local/bin/paper
+sh install/linux.sh  # Linux -> ~/.local/bin/paper
+```
+
 ## Quickstart
 
 ```

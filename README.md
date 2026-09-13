@@ -11,6 +11,16 @@ paper run ./my-server     # run it
 paper delete ./my-server  # wipe everything but paper.jar
 ```
 
+## Install
+
+```bat
+install\windows.bat
+```
+```sh
+sh install/macos.sh  # macOS -> ~/.local/bin/paper
+sh install/linux.sh  # Linux -> ~/.local/bin/paper
+```
+
 ## Build
 
 ```sh
