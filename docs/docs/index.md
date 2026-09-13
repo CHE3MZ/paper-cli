@@ -19,6 +19,14 @@ sh install/macos.sh  # macOS -> ~/.local/bin/paper
 sh install/linux.sh  # Linux -> ~/.local/bin/paper
 ```
 
+### Uninstall
+
+```
+install\uninstall-windows.bat
+sh install/uninstall-macos.sh
+sh install/uninstall-linux.sh
+```
+
 ## Quickstart
 
 ```
