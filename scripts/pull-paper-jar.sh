@@ -38,3 +38,15 @@ else
     echo "Error: Downloaded file is empty or missing."
     exit 1
 fi
+
+# Switch to install directory, generate initial files, write EULA, and launch server
+cd "$INSTALL_PATH"
+
+echo "Running initial server setup to generate files..."
+java -jar paper.jar || true
+
+echo "Configuring eula.txt..."
+cat <<EOF > eula.txt
+#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
+eula=true
+EOF
