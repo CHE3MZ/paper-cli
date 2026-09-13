@@ -10,12 +10,31 @@ INSTALL_PATH="paper-server/$VERSION"
 
 mkdir -p "$INSTALL_PATH"
 
+echo "Fetching latest build number..."
 LATEST_BUILD=$(curl -s "$BASE_URL/versions/$VERSION" | jq '.builds | max')
-BUILD_JSON=$(curl -s "$BASE_URL/versions/$VERSION/builds/$LATEST_BUILD")
-JAR_NAME=$(echo "$BUILD_JSON" | jq -r '.downloads.application.name')
-DOWNLOAD_URL="$BASE_URL/versions/$VERSION/builds/$LATEST_BUILD/downloads/$JAR_NAME"
-DESTINATION="$INSTALL_PATH/$JAR_NAME"
+[ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" != "null" ] || { echo "Failed to fetch latest build number."; exit 1; }
+echo "Latest build: $LATEST_BUILD"
 
-echo "Downloading $JAR_NAME (Build $LATEST_BUILD)..."
-curl -sL -o "$DESTINATION" "$DOWNLOAD_URL"
-echo "Saved to $DESTINATION"
+BUILD_JSON=$(curl -s "$BASE_URL/versions/$VERSION/builds/$LATEST_BUILD")
+
+DOWNLOAD_INFO=$(echo "$BUILD_JSON" | jq -r '.downloads[] | select(.url != null and .name != null) | [.name, .url] | @tsv' | head -n 1)
+
+if [ -z "$DOWNLOAD_INFO" ]; then
+    echo "Error: Could not find valid download entry in build JSON."
+    echo "$BUILD_JSON" | jq .downloads
+    exit 1
+fi
+
+JAR_NAME=$(printf "%s" "$DOWNLOAD_INFO" | cut -f1)
+DOWNLOAD_URL=$(printf "%s" "$DOWNLOAD_INFO" | cut -f2)
+DESTINATION="$INSTALL_PATH/paper.jar"
+
+echo "Downloading $JAR_NAME as paper.jar (Build $LATEST_BUILD)..."
+curl -sL --fail -o "$DESTINATION" "$DOWNLOAD_URL"
+
+if [ -s "$DESTINATION" ]; then
+    echo "Success: Saved to $DESTINATION"
+else
+    echo "Error: Downloaded file is empty or missing."
+    exit 1
+fi
