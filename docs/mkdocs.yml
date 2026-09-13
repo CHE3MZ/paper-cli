@@ -6,9 +6,11 @@ site_url: https://che3mz.github.io/paper-cli/
 
 nav:
   - Home: index.md
-  - Getting Started:
+  - Platform:
     - Windows: windows.md
-    - MacOS: macos.md
+    - macOS: macos.md
+    - Linux: linux.md
+  - Developers: developers.md
   - Contributing: contribution.md
 
 extra_css:

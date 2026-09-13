@@ -1,15 +1,14 @@
-# macOS
+# Linux
 
 ## What you need
 
-- **Java 21 or newer.** Check with `java -version`. If you don't have it:
+- **Java 21 or newer.** Check with `java -version`. Install it with your
+  package manager, for example:
 
   ```
-  brew install openjdk@21
+  sudo apt install openjdk-21-jre-headless    # Debian/Ubuntu
+  sudo dnf install java-21-openjdk-headless   # Fedora
   ```
-
-  Make sure `java` ends up on your PATH (Homebrew usually tells you the
-  exact line to add — follow its instructions after installing).
 
 - **The `paper` binary.** Either download a prebuilt `paper` binary, or
   build it yourself (needs the [Go toolchain](https://go.dev/dl/)):
@@ -19,8 +18,8 @@
   ```
 
   This drops `build/paper` (~177MB — the server files live inside it).
-  Move it somewhere on your PATH, e.g. `/usr/local/bin`, or call it by
-  its full path.
+  Move it somewhere on your PATH, e.g. `~/.local/bin` or `/usr/local/bin`,
+  or call it by its full path.
 
 ## Your first server
 
@@ -40,9 +39,12 @@ cd my-server
 paper run --nogui -m=2gb
 ```
 
+A common way to keep a server running after you log out is a terminal
+multiplexer (`tmux` / `screen`) or a systemd service — `paper run` itself
+is a normal foreground process, so wrap it however you like.
+
 ## Notes
 
-- On first run of a downloaded binary, macOS may complain that it can't
-  verify the developer. Right-click it once and choose Open, or remove the
-  quarantine flag with `xattr -d com.apple.quarantine paper`.
+- `--nogui` matters on headless machines: without it the server tries to
+  open a GUI and crashes.
 - The full command list lives on the [Home](index.md) page.
