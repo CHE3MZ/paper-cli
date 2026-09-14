@@ -15,6 +15,7 @@ paper-cli/
 │   ├── server.go          # new / run / delete implementation
 │   ├── java.go            # memory parsing, java resolution, command building
 │   ├── version.go         # reading the embedded bundle out of the binary
+│   ├── update.go          # paper version / paper update (self-update, CLI version)
 │   ├── style.go           # ANSI colors (white, light blue, gray)
 │   ├── console_windows.go # enables ANSI colors on Windows consoles
 │   ├── console_other.go   # no-op on other platforms
@@ -43,7 +44,9 @@ The build scripts bridge that gap in two steps:
    `src/embed_generated.go` with the `//go:embed` line plus some constants
    (build path, version, file count, sizes).
 2. `go build -o build/paper ./cmd/paper` compiles the binary with the
-   archive inside it.
+   archive inside it. The build scripts add `-ldflags "-X
+   github.com/CHE3MZ/paper-cli/src.CLIVersion=<tag>"` so `paper version`
+   reports the release tag (`dev` when unstamped).
 
 Not everything in the template is packed: `versions/`, `logs/`, and
 `plugins/.paper-remapped/` are skipped because the server recreates them
@@ -65,7 +68,7 @@ so nothing can escape the target directory.
 flags. Colors go through the helpers in `style.go`, which turn themselves
 off when output is piped.
 
-**server.go** — The three commands:
+**server.go** — The server commands (new / run / delete):
 
 - `NewServer` refuses if `paper.jar` already exists (unless `--force`),
   then extracts the whole bundle and guarantees an `eula.txt` exists.
@@ -86,6 +89,23 @@ when no explicit memory was given — explicit flags always win.
 above). The `Embedded*` constants next to it record what the binary was
 built with (build path, version, file count, sizes).
 
+**update.go** — `paper version` and `paper update`. `CLIVersion` holds the
+CLI's own release version: it defaults to `dev` and is stamped at build
+time with `-ldflags "-X
+github.com/CHE3MZ/paper-cli/src.CLIVersion=<tag>"`. `scripts/build.sh`
+and `scripts/build.ps1` do this for you (they use `$PAPER_CLI_VERSION`
+when set — the `release-all` workflow sets it to the tag being released
+— else the latest GitHub release tag (what
+`github.com/CHE3MZ/paper-cli/releases/latest` points at), else the latest
+local git tag, else `dev`). Local tags are only a fallback because they
+can be stale or never pushed. `VersionText` prints the bundled
+PaperMC version next to it. The updater mirrors the install scripts
+(same repo, same `releases/latest/download` URL, per-OS asset names) but
+runs from inside the CLI: it downloads into a `paper_temp` file next to
+the running binary (`UpdateTempPath`), then atomically renames it over
+the binary (`ApplyUpdate`). The target is the resolved current
+executable (`UpdateTarget`), falling back to `~/.local/bin/paper`.
+
 **style.go, console_windows.go, console_other.go** — Bold/white/light
 blue/gray/green/red paint functions. Windows consoles need virtual-terminal
 processing switched on before ANSI codes work, which is what the
@@ -101,7 +121,8 @@ in `BuildJavaCommand`, parse it in `runRun` in `cli.go`, document it in
 `HelpText` and on the Home docs page, and cover it in `test/java_test.go`.
 
 **Add a command.** Add a `runX` function in `cli.go`, a case in the `Run`
-switch, the implementation in `server.go`, help text, docs, and tests.
+switch, the implementation in `server.go` (or `update.go` for
+self-management commands), help text, docs, and tests.
 
 **Bump the Paper version.** Edit `VERSION` in `scripts/pull-paper-jar.sh`
 and run it (needs `jq`, `curl`, `java`), point `current-build-path` in

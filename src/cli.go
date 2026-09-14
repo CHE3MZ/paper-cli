@@ -3,6 +3,7 @@ package src
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -17,9 +18,11 @@ func HelpText() string {
 	fmt.Fprintln(b)
 	fmt.Fprintln(b, bold("Commands:"))
 	fmt.Fprintln(b, "  "+lightBlue("paper help")+"                           "+gray("prints this help text"))
+	fmt.Fprintln(b, "  "+lightBlue("paper version")+"                        "+gray("prints the bundled PaperMC and CLI versions"))
 	fmt.Fprintln(b, "  "+lightBlue("paper new")+gray(" . | PATH [--force]")+"         "+gray("creates a new paper server here or at PATH"))
 	fmt.Fprintln(b, "  "+lightBlue("paper run")+gray(" [PATH] [flags]")+"             "+gray("runs the server (current directory by default)"))
 	fmt.Fprintln(b, "  "+lightBlue("paper delete")+gray(" [PATH] [--confirm]")+"      "+gray("deletes everything but paper.jar (asks first)"))
+	fmt.Fprintln(b, "  "+lightBlue("paper update")+"                         "+gray("downloads the latest release and replaces this binary"))
 	fmt.Fprintln(b)
 	fmt.Fprintln(b, bold("Run flags:"))
 	fmt.Fprintln(b, "  "+lightBlue("--nogui")+gray("                              run as: java -jar paper.jar nogui"))
@@ -37,6 +40,8 @@ func HelpText() string {
 	fmt.Fprintln(b, "  "+lightBlue("paper run --nogui -m=2gb"))
 	fmt.Fprintln(b, "  "+lightBlue("paper run ./my-server -o"))
 	fmt.Fprintln(b, "  "+lightBlue("paper delete --confirm"))
+	fmt.Fprintln(b, "  "+lightBlue("paper version"))
+	fmt.Fprintln(b, "  "+lightBlue("paper update"))
 	return b.String()
 }
 
@@ -65,6 +70,10 @@ func Run(argv []string) int {
 		return runRun(args[1:])
 	case "delete":
 		return runDelete(args[1:])
+	case "version":
+		return runVersion(args[1:])
+	case "update":
+		return runUpdate(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "%s unknown command %q\n\n%s", red("error:"), args[0], HelpText())
 		return 2
@@ -205,5 +214,59 @@ func runDelete(args []string) int {
 		errLine(err)
 		return 1
 	}
+	return 0
+}
+
+func runVersion(args []string) int {
+	for _, a := range args {
+		switch a {
+		case "--help", "-h":
+			fmt.Print(HelpText())
+			return 0
+		default:
+			if strings.HasPrefix(a, "-") {
+				fmt.Fprintf(os.Stderr, "%s unknown flag %q for `paper version`\n", red("error:"), a)
+			} else {
+				fmt.Fprintln(os.Stderr, red("error:")+" too many arguments for `paper version`: expected no arguments")
+			}
+			return 2
+		}
+	}
+	fmt.Print(VersionText())
+	return 0
+}
+
+func runUpdate(args []string) int {
+	for _, a := range args {
+		switch a {
+		case "--help", "-h":
+			fmt.Print(HelpText())
+			return 0
+		default:
+			if strings.HasPrefix(a, "-") {
+				fmt.Fprintf(os.Stderr, "%s unknown flag %q for `paper update`\n", red("error:"), a)
+			} else {
+				fmt.Fprintln(os.Stderr, red("error:")+" too many arguments for `paper update`: expected no arguments")
+			}
+			return 2
+		}
+	}
+	asset := UpdateAssetForGOOS(runtime.GOOS)
+	url := UpdateDownloadURL(UpdateRepo, asset)
+	dest, err := UpdateTarget()
+	if err != nil {
+		errLine(err)
+		return 1
+	}
+	fmt.Printf("%s %s %s\n", gray("downloading"), lightBlue(asset), gray("from "+url))
+	fmt.Printf("%s %s\n", gray("to:"), lightBlue(dest))
+	if _, err := SelfUpdate(dest, url, nil); err != nil {
+		errLine(err)
+		return 1
+	}
+	// NOTE: do not print CLIVersion here: it is this (old) process's baked
+	// version, not the downloaded binary's. The file on disk is new, but
+	// this process image is still the old one.
+	fmt.Printf("%s paper to %s\n%s\n", green("updated"), lightBlue(dest), gray("run `paper version` to confirm the new version."))
 	return 0
 }

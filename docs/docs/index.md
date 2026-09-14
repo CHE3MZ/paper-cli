@@ -8,7 +8,7 @@ one binary called `paper`, and it works offline: the server files are packed
 inside the binary itself, so creating a new server is just unpacking — no
 downloads, no installers, no browser.
 
-If you just want to run a server, you only need three commands. Everything
+If you just want to run a server, the core loop is three commands. Everything
 else in these docs is detail you can read when you need it.
 
 ## Install
@@ -81,6 +81,32 @@ rule, it refuses to touch a folder with no `paper.jar` in it.
 paper delete --confirm
 paper delete ./my-server -y
 ```
+
+**paper version** — prints the two versions that matter: the bundled
+PaperMC version (`Paper MC Version`, e.g. `1.21.11`) and the CLI's own
+release version (`Paper CLI Version`, e.g. `v1.0.0`, baked in at build
+time from the release tag). A local build without version stamping
+reports `dev`.
+
+```
+paper version
+```
+
+**paper update** — self-updates to the latest release. It downloads the
+right binary for your OS from
+`github.com/CHE3MZ/paper-cli/releases/latest` (the same file the
+install scripts fetch), stages it as `paper_temp` next to the binary
+you're running, then replaces that binary with the download. Same
+sources and destinations as the install scripts, run from inside the
+CLI.
+
+```
+paper update
+```
+
+One platform note: on Windows a running `.exe` can't replace itself, so
+if the swap fails the download stays at `paper_temp.exe` next to it and
+the error tells you where — copy it over by hand once `paper` has exited.
 
 ## Colors
 

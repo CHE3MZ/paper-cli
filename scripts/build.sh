@@ -11,6 +11,25 @@ go run ./src/genembed
 
 mkdir -p "$ROOT/build"
 OUT="$ROOT/build/paper"
-echo "==> building $OUT"
-go build -o "$OUT" ./cmd/paper
+
+# Bake the CLI version into the binary. $PAPER_CLI_VERSION wins (the
+# release workflow sets it to the tag being released, so no network call
+# happens there); otherwise ask GitHub what the latest release is (local
+# git tags can be stale or unpushed, so they are only a fallback);
+# otherwise "dev" (plain `go build` without this flag does that).
+VERSION="${PAPER_CLI_VERSION:-}"
+if [ -z "$VERSION" ]; then
+  LATEST_JSON="$(curl -fsSL --max-time 10 https://api.github.com/repos/CHE3MZ/paper-cli/releases/latest 2>/dev/null || true)"
+  if [ -n "$LATEST_JSON" ]; then
+    VERSION="$(printf '%s' "$LATEST_JSON" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  fi
+fi
+if [ -z "$VERSION" ]; then
+  VERSION="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+fi
+if [ -z "$VERSION" ]; then
+  VERSION="dev"
+fi
+echo "==> building $OUT (Paper CLI version $VERSION)"
+go build -ldflags "-X github.com/CHE3MZ/paper-cli/src.CLIVersion=$VERSION" -o "$OUT" ./cmd/paper
 echo "done: $OUT"

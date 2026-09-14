@@ -109,6 +109,8 @@ jobs:
         run: go test ./...
 
       - name: Build
+        env:
+          PAPER_CLI_VERSION: ${{ needs.version.outputs.tag }}
         run: ${{ matrix.build }}
 
       - name: Rename binary

@@ -21,6 +21,13 @@ sh install/macos.sh  # macOS -> ~/.local/bin/paper
 sh install/linux.sh  # Linux -> ~/.local/bin/paper
 ```
 
+### Update
+
+```sh
+paper update
+paper version
+```
+
 ### Uninstall
 
 ```bat
