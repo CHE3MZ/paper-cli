@@ -1,0 +1,16 @@
+# Pin line endings so every checkout (Windows/macOS/Linux, dev or CI)
+# produces byte-identical files. This matters: src/genembed bundles
+# paper-server/ into the binary, so CRLF-converted text files would
+# silently change the bundle and flip release builds to "-dirty".
+* text=auto eol=lf
+
+# Explicit armor for tracked binaries (text=auto already preserves these
+# via NUL detection, but say it plainly so no future setting can convert
+# a jar, image or font).
+*.jar binary
+*.png binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

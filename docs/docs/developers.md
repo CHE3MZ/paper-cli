@@ -53,7 +53,10 @@ The build scripts bridge that gap in two steps:
 
 Not everything in the template is packed: `versions/`, `logs/`, and
 `plugins/.paper-remapped/` are skipped because the server recreates them
-on boot (we've booted a fresh deploy to prove it). The jars themselves are
+on boot (we've booted a fresh deploy to prove it). Line endings are pinned
+to LF by `.gitattributes`, so the packed bytes are identical on every OS —
+a CRLF checkout would silently change the bundle and flip release builds
+to `-dirty`. The jars themselves are
 already compressed, so gzip only saves a few percent — the real saving is
 skipping those regenerable files.
 
