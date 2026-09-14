@@ -1,12 +1,14 @@
 package src
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // CLIVersion is the Paper CLI release version (e.g. "v1.0.0").
@@ -27,6 +29,48 @@ var CLIVersion = "dev"
 
 // UpdateRepo is the GitHub repo self-update downloads from.
 const UpdateRepo = "CHE3MZ/paper-cli"
+
+// LatestReleaseAPI is the GitHub API endpoint that reports the latest
+// release (i.e. what github.com/CHE3MZ/paper-cli/releases/latest points
+// at). It is a var, not a const, so tests can point it at a local server.
+var LatestReleaseAPI = "https://api.github.com/repos/" + UpdateRepo + "/releases/latest"
+
+// LatestReleaseTag asks a LatestReleaseAPI-style endpoint for its tag_name
+// (e.g. "v1.0.0").
+func LatestReleaseTag(apiURL string, client *http.Client) (string, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Get(apiURL) //nolint:gosec,noctx // URL is the release API endpoint (or a test server)
+	if err != nil {
+		return "", fmt.Errorf("query latest release at %s: %w", apiURL, err)
+	}
+	defer resp.Body.Close() //nolint:errcheck // decode error already surfaces below
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("query latest release at %s: server returned %s", apiURL, resp.Status)
+	}
+	var payload struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("query latest release at %s: %w", apiURL, err)
+	}
+	if strings.TrimSpace(payload.TagName) == "" {
+		return "", fmt.Errorf("query latest release at %s: response has no tag_name", apiURL)
+	}
+	return strings.TrimSpace(payload.TagName), nil
+}
+
+// SameCLIVersion reports whether current and latest name the same release.
+// A single leading "v" is ignored, so "v1.0.0" and "1.0.0" match. "dev"
+// never matches a real tag, so unstamped local builds always update.
+func SameCLIVersion(current, latest string) bool {
+	norm := func(v string) string {
+		return strings.TrimPrefix(strings.TrimSpace(v), "v")
+	}
+	a, b := norm(current), norm(latest)
+	return a != "" && b != "" && a == b
+}
 
 // UpdateAssetForGOOS maps a GOOS value to the release asset name,
 // mirroring install/linux.sh, install/macos.sh and install/windows.bat.

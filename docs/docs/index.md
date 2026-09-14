@@ -98,7 +98,8 @@ right binary for your OS from
 install scripts fetch), stages it as `paper_temp` next to the binary
 you're running, then replaces that binary with the download. Same
 sources and destinations as the install scripts, run from inside the
-CLI.
+CLI. If you're already on the latest release it just says so and
+downloads nothing.
 
 ```
 paper update

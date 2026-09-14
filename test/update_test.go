@@ -119,3 +119,59 @@ func TestSelfUpdateFailsCleanlyOnBadStatus(t *testing.T) {
 		t.Errorf("failed update must leave dest alone, got %q", got)
 	}
 }
+
+func TestSameCLIVersion(t *testing.T) {
+	cases := []struct {
+		current, latest string
+		want            bool
+	}{
+		{"v1.0.0", "v1.0.0", true},
+		{"v1.0.0", "1.0.0", true}, // leading "v" is ignored
+		{"1.0.0", "v1.0.0", true},
+		{"v1.0.0", "v1.0.1", false},
+		{"dev", "v1.0.0", false}, // unstamped builds always update
+		{"", "v1.0.0", false},
+		{"v1.0.0", "", false},
+	}
+	for _, c := range cases {
+		if got := src.SameCLIVersion(c.current, c.latest); got != c.want {
+			t.Errorf("SameCLIVersion(%q, %q) = %v, want %v", c.current, c.latest, got, c.want)
+		}
+	}
+}
+
+func TestLatestReleaseTag(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name": "v1.2.3"}`))
+	}))
+	defer srv.Close()
+	if got, err := src.LatestReleaseTag(srv.URL, nil); err != nil || got != "v1.2.3" {
+		t.Errorf("LatestReleaseTag = %q, %v; want %q, nil", got, err, "v1.2.3")
+	}
+
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "rate limited", http.StatusForbidden)
+	}))
+	defer bad.Close()
+	if _, err := src.LatestReleaseTag(bad.URL, nil); err == nil {
+		t.Error("LatestReleaseTag on 403 expected error, got nil")
+	}
+}
+
+func TestUpdateSkipsDownloadWhenCurrent(t *testing.T) {
+	// The fake API reports exactly the version this test process claims
+	// to be, so `paper update` must take the early "already up to date"
+	// exit without touching any binary on disk.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name": "v9.9.9-test"}`))
+	}))
+	defer srv.Close()
+
+	oldVersion, oldAPI := src.CLIVersion, src.LatestReleaseAPI
+	src.CLIVersion, src.LatestReleaseAPI = "v9.9.9-test", srv.URL
+	defer func() { src.CLIVersion, src.LatestReleaseAPI = oldVersion, oldAPI }()
+
+	if got := src.Run([]string{"paper", "update"}); got != 0 {
+		t.Errorf("paper update when current = %d, want 0", got)
+	}
+}

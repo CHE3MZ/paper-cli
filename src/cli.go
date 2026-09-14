@@ -22,7 +22,7 @@ func HelpText() string {
 	fmt.Fprintln(b, "  "+lightBlue("paper new")+gray(" . | PATH [--force]")+"         "+gray("creates a new paper server here or at PATH"))
 	fmt.Fprintln(b, "  "+lightBlue("paper run")+gray(" [PATH] [flags]")+"             "+gray("runs the server (current directory by default)"))
 	fmt.Fprintln(b, "  "+lightBlue("paper delete")+gray(" [PATH] [--confirm]")+"      "+gray("deletes everything but paper.jar (asks first)"))
-	fmt.Fprintln(b, "  "+lightBlue("paper update")+"                         "+gray("downloads the latest release and replaces this binary"))
+	fmt.Fprintln(b, "  "+lightBlue("paper update")+"                         "+gray("updates this binary to the latest release (no-op when already current)"))
 	fmt.Fprintln(b)
 	fmt.Fprintln(b, bold("Run flags:"))
 	fmt.Fprintln(b, "  "+lightBlue("--nogui")+gray("                              run as: java -jar paper.jar nogui"))
@@ -257,6 +257,14 @@ func runUpdate(args []string) int {
 	if err != nil {
 		errLine(err)
 		return 1
+	}
+	// Best effort: when the check works and this binary is already the
+	// latest release, say so instead of re-downloading. When the check
+	// fails (offline, rate-limited), fall through to the download, which
+	// is the safe default.
+	if latest, lerr := LatestReleaseTag(LatestReleaseAPI, nil); lerr == nil && SameCLIVersion(CLIVersion, latest) {
+		fmt.Printf("%s %s is already up to date.\n", green("paper"), lightBlue(CLIVersion))
+		return 0
 	}
 	fmt.Printf("%s %s %s\n", gray("downloading"), lightBlue(asset), gray("from "+url))
 	fmt.Printf("%s %s\n", gray("to:"), lightBlue(dest))
