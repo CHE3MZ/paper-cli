@@ -195,6 +195,52 @@ func UpdateTarget() (string, error) {
 	return DefaultInstallPath()
 }
 
+// staleStagingAge bounds it: downloads are capped at downloadTimeout, so a
+// staging file older than this is an orphan, never a live download.
+const staleStagingAge = time.Hour
+
+// SweepStaleStaging removes paper_temp.* files (plus the legacy shared
+// paper_temp/paper_temp.exe names) older than olderThan in dir, returning
+// how many went away. Best effort: locked (live) files simply stay.
+func SweepStaleStaging(dir string, olderThan time.Duration) int {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0
+	}
+	cutoff := time.Now().Add(-olderThan)
+	removed := 0
+	for _, e := range entries {
+		name := e.Name()
+		if name != "paper_temp" && name != "paper_temp.exe" && !strings.HasPrefix(name, "paper_temp.") {
+			continue
+		}
+		p := filepath.Join(dir, name)
+		st, err := os.Stat(p)
+		if err != nil || !st.Mode().IsRegular() || !st.ModTime().Before(cutoff) {
+			continue
+		}
+		if err := os.Remove(p); err == nil {
+			removed++
+		}
+	}
+	return removed
+}
+
+// SweepStaleOld removes dest's .old rename-aside leftover, reporting
+// whether it went away. Safe anytime: a live image (helper mid-swap, or a
+// process actually running from it) refuses deletion and is left alone.
+func SweepStaleOld(dest string) bool {
+	return os.Remove(dest+".old") == nil
+}
+
+// SweepUpdateLeftovers drops dest's .old leftover and orphaned staging
+// files beside it. Best effort; live files refuse deletion and stay. Call
+// it on version/update invocations so leftovers vanish in normal use.
+func SweepUpdateLeftovers(dest string) {
+	SweepStaleOld(dest)
+	SweepStaleStaging(filepath.Dir(dest), staleStagingAge)
+}
+
 // UpdateTempPath returns the staging file for a download:
 // paper_temp.<pid> next to dest (paper_temp.<pid>.exe on Windows). The PID
 // suffix keeps concurrent `paper update` processes from interleaving into
@@ -365,12 +411,15 @@ func runFinishUpdate(args []string) int {
 	}
 	// Sweep a stale .old from the pre-helper era (or any earlier swap).
 	// Best effort: when the fallback path just created one, this process
-	// still runs from that image, so the remove fails and the note below
-	// correctly reports it as kept.
-	_ = os.Remove(dest + ".old")
+	// still runs from that image, so the remove fails and it is correctly
+	// reported as kept below.
+	kept := false
+	if _, err := os.Stat(dest + ".old"); err == nil && !SweepStaleOld(dest) {
+		kept = true
+	}
 	fmt.Printf("%s paper to %s\n%s\n", green("updated"), lightBlue(dest), gray("run `paper version` to confirm the new version."))
-	if _, err := os.Stat(dest + ".old"); err == nil {
-		fmt.Printf("%s\n", gray("old binary kept at "+dest+".old (removed on the next update)."))
+	if kept {
+		fmt.Printf("%s\n", gray("old binary kept at "+dest+".old (cleaned up automatically)."))
 	}
 	return 0
 }

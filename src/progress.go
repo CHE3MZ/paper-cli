@@ -59,7 +59,10 @@ func (p *ProgressWriter) maybeDraw() {
 	}
 	p.lastDraw = now
 	p.drew = true
-	fmt.Printf("\r%s", DownloadLine(p.written, p.total, now.Sub(p.start)))
+	// \x1b[K clears to end of line: redraws are \r-only, so without it a
+	// shorter line would leave stale tail characters behind (e.g. a
+	// leftover "ETA 0sss"). VT is assumed — the whole CLI is ANSI-styled.
+	fmt.Printf("\r\x1b[K%s", DownloadLine(p.written, p.total, now.Sub(p.start)))
 }
 
 // Finish draws the final line and ends it, so the next output starts clean.
@@ -68,7 +71,7 @@ func (p *ProgressWriter) Finish() {
 		return
 	}
 	p.drew = true
-	fmt.Printf("\r%s\n", DownloadLine(p.written, p.total, time.Since(p.start)))
+	fmt.Printf("\r\x1b[K%s\n", DownloadLine(p.written, p.total, time.Since(p.start)))
 }
 
 // Abort ends an interrupted bar line, so a following error starts clean.

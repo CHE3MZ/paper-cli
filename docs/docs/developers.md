@@ -125,7 +125,9 @@ rename can never succeed while it lives, while the aside swap works
 immediately. The
 parent waits for the helper everywhere except Windows, where it must exit
 first and hands off instead. `detach_unix.go` / `detach_windows.go` let
-the helper outlive terminal signals. The target is the resolved current
+the helper outlive terminal signals. Leftovers (.old, orphaned staging
+files) are swept best-effort on version/update invocations
+(`SweepUpdateLeftovers`). The target is the resolved current
 executable (`UpdateTarget`), falling back to `~/.local/bin/paper`.
 
 **progress.go** — `ProgressWriter`, an `io.Writer` wrapper that counts

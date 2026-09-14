@@ -115,8 +115,9 @@ in place, so there the helper runs detached after `paper` exits and prints
 the result itself — run `paper version` to confirm. On Linux/macOS nothing
 is left behind: the staging file is consumed by the swap. On Windows the
 helper itself runs from the binary being replaced, so every update renames
-it aside to `paper.exe.old` first; that file is removed on your next
-update, and at most one ever lingers.
+it aside to `paper.exe.old` first; that file is cleaned up automatically
+the next time you run paper, and at most one ever lingers. Stale staging
+files from interrupted downloads are swept the same way.
 
 ## Colors
 

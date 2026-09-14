@@ -236,6 +236,12 @@ func runVersion(args []string) int {
 			return 2
 		}
 	}
+	// Opportunistic hygiene (same sweep `paper update` does): the message
+	// after an update tells the user to run this next, so leftovers vanish
+	// in the normal flow.
+	if dest, err := UpdateTarget(); err == nil {
+		SweepUpdateLeftovers(dest)
+	}
 	fmt.Print(VersionText())
 	return 0
 }
@@ -262,6 +268,9 @@ func runUpdate(args []string) int {
 		errLine(err)
 		return 1
 	}
+	// Hygiene first: drop the previous .old (frees ~180MB for the download
+	// below) and any orphaned staging files. Both are best effort.
+	SweepUpdateLeftovers(dest)
 	// Best effort: when the check works and this binary is already the
 	// latest release, say so instead of re-downloading. When the check
 	// fails (offline, rate-limited), fall through to the download, which

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/CHE3MZ/paper-cli/src"
 )
@@ -471,5 +472,73 @@ func TestConcurrentUpdatesDontInterleave(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func backdate(t *testing.T, path string, age time.Duration) {
+	t.Helper()
+	past := time.Now().Add(-age)
+	if err := os.Chtimes(path, past, past); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSweepStaleStaging(t *testing.T) {
+	dir := t.TempDir()
+	mk := func(name string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	oldTmp := mk("paper_temp.111")
+	freshTmp := mk("paper_temp.222")
+	oldLegacy := mk("paper_temp")
+	freshLegacy := mk("paper_temp.exe")
+	unrelated := mk("notes.txt")
+	subdir := filepath.Join(dir, "paper_temp.333")
+	if err := os.Mkdir(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	backdate(t, oldTmp, 2*time.Hour)
+	backdate(t, oldLegacy, 2*time.Hour)
+	backdate(t, unrelated, 2*time.Hour)
+
+	if got := src.SweepStaleStaging(dir, time.Hour); got != 2 {
+		t.Errorf("SweepStaleStaging removed %d, want 2", got)
+	}
+	for gone, want := range map[string]bool{
+		oldTmp: true, oldLegacy: true,
+		freshTmp: false, freshLegacy: false, unrelated: false, subdir: false,
+	} {
+		_, err := os.Stat(gone)
+		if want && !os.IsNotExist(err) {
+			t.Errorf("%s should be gone", gone)
+		}
+		if !want && err != nil {
+			t.Errorf("%s should survive, stat err = %v", gone, err)
+		}
+	}
+}
+
+func TestSweepStaleOld(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "paper.exe")
+	if err := os.WriteFile(dest, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := src.SweepStaleOld(dest); got {
+		t.Error("SweepStaleOld with no .old = true, want false")
+	}
+	old := dest + ".old"
+	if err := os.WriteFile(old, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := src.SweepStaleOld(dest); !got {
+		t.Error("SweepStaleOld with .old = false, want true")
+	}
+	if _, err := os.Stat(old); !os.IsNotExist(err) {
+		t.Error(".old should be gone after sweep")
 	}
 }
