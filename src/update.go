@@ -210,7 +210,8 @@ func UpdateTempPath(dest string) string {
 }
 
 // DownloadFile fetches url into dest (partial downloads fail instead of
-// leaving a truncated binary behind).
+// leaving a truncated binary behind). On an interactive terminal a live
+// progress bar tracks the transfer; piped output stays silent.
 func DownloadFile(url, dest string, client *http.Client) error {
 	if client == nil {
 		client = downloadHTTPClient()
@@ -227,13 +228,17 @@ func DownloadFile(url, dest string, client *http.Client) error {
 	if err != nil {
 		return fmt.Errorf("write %s: %w", dest, err)
 	}
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	pw := NewProgressWriter(out, resp.ContentLength)
+	if _, err := io.Copy(pw, resp.Body); err != nil {
 		_ = out.Close()
+		pw.Abort()
 		return fmt.Errorf("write %s: %w", dest, err)
 	}
 	if err := out.Close(); err != nil {
+		pw.Abort()
 		return fmt.Errorf("write %s: %w", dest, err)
 	}
+	pw.Finish()
 	// Best effort on Windows (chmod is mostly a no-op there, the open
 	// mode above already set what matters).
 	_ = os.Chmod(dest, 0o755)

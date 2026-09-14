@@ -96,7 +96,9 @@ paper version
 right binary for your OS from
 `github.com/CHE3MZ/paper-cli/releases/latest` (the same file the
 install scripts fetch), stages it as `paper_temp.<pid>` next to the binary
-you're running, then swaps it in. The swap itself runs in a helper —
+you're running, then swaps it in. On an interactive terminal a live
+progress bar tracks the download (percent, megabytes, speed, ETA); piped
+output stays clean. The swap itself runs in a helper —
 which is just `paper` re-executed with a hidden internal command, so the
 install stays one file and there is no script to tamper with. The download
 is checksum-verified against the digest published with the release before

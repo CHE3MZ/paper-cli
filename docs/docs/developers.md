@@ -16,6 +16,7 @@ paper-cli/
 │   ├── java.go            # memory parsing, java resolution, command building
 │   ├── version.go         # reading the embedded bundle out of the binary
 │   ├── update.go          # paper version / paper update (self-update, CLI version)
+│   ├── progress.go        # download progress bar (terminal only, silent when piped)
 │   ├── detach_unix.go     # helper detach: new session so signals miss it
 │   ├── detach_windows.go  # helper detach: no-op (children outlive parents)
 │   ├── style.go           # ANSI colors (white, light blue, gray)
@@ -123,6 +124,12 @@ parent waits for the helper everywhere except Windows, where it must exit
 first and hands off instead. `detach_unix.go` / `detach_windows.go` let
 the helper outlive terminal signals. The target is the resolved current
 executable (`UpdateTarget`), falling back to `~/.local/bin/paper`.
+
+**progress.go** — `ProgressWriter`, an `io.Writer` wrapper that counts
+download bytes through to the file while drawing a single-line `\r` bar
+(percent, megabytes, speed, ETA) on interactive terminals only — piped
+output stays byte-clean. The line renderer (`DownloadLine`) is a pure
+function so tests pin the exact format.
 
 **style.go, console_windows.go, console_other.go** — Bold/white/light
 blue/gray/green/red paint functions. Windows consoles need virtual-terminal
