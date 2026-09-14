@@ -1,14 +1,19 @@
 package src
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // CLIVersion is the Paper CLI release version (e.g. "v1.0.0").
@@ -30,6 +35,20 @@ var CLIVersion = "dev"
 // UpdateRepo is the GitHub repo self-update downloads from.
 const UpdateRepo = "CHE3MZ/paper-cli"
 
+// httpTimeout bounds every self-update network call (API + download). The
+// stdlib default client has no timeout, which would hang `paper update`
+// forever on a stalled connection.
+const httpTimeout = 60 * time.Second
+
+// finishRetryFor bounds the helper's wait for the parent to exit before it
+// falls back to the rename-aside swap.
+const finishRetryFor = 30 * time.Second
+
+// defaultHTTPClient is used whenever callers pass a nil client.
+func defaultHTTPClient() *http.Client {
+	return &http.Client{Timeout: httpTimeout}
+}
+
 // LatestReleaseAPI is the GitHub API endpoint that reports the latest
 // release (i.e. what github.com/CHE3MZ/paper-cli/releases/latest points
 // at). It is a var, not a const, so tests can point it at a local server.
@@ -38,27 +57,71 @@ var LatestReleaseAPI = "https://api.github.com/repos/" + UpdateRepo + "/releases
 // LatestReleaseTag asks a LatestReleaseAPI-style endpoint for its tag_name
 // (e.g. "v1.0.0").
 func LatestReleaseTag(apiURL string, client *http.Client) (string, error) {
+	info, err := FetchReleaseInfo(apiURL, client)
+	if err != nil {
+		return "", err
+	}
+	return info.Tag, nil
+}
+
+// ReleaseInfo is the slice of a GitHub latest-release response we care
+// about: the tag plus the per-asset SHA256 digests for download verification.
+type ReleaseInfo struct {
+	Tag string
+	// Digests maps asset name ("paper-linux", ...) to lowercase hex SHA256
+	// (without any "sha256:" prefix). Assets without a usable digest are
+	// simply absent.
+	Digests map[string]string
+}
+
+// DigestFor returns the expected hex SHA256 for an asset, or "" when the
+// release carries none (verification is then skipped, not failed).
+func (r *ReleaseInfo) DigestFor(asset string) string {
+	if r == nil {
+		return ""
+	}
+	return r.Digests[asset]
+}
+
+// FetchReleaseInfo asks a LatestReleaseAPI-style endpoint for its tag_name
+// and asset digests.
+func FetchReleaseInfo(apiURL string, client *http.Client) (*ReleaseInfo, error) {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultHTTPClient()
 	}
 	resp, err := client.Get(apiURL) //nolint:gosec,noctx // URL is the release API endpoint (or a test server)
 	if err != nil {
-		return "", fmt.Errorf("query latest release at %s: %w", apiURL, err)
+		return nil, fmt.Errorf("query latest release at %s: %w", apiURL, err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // decode error already surfaces below
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("query latest release at %s: server returned %s", apiURL, resp.Status)
+		return nil, fmt.Errorf("query latest release at %s: server returned %s", apiURL, resp.Status)
 	}
 	var payload struct {
 		TagName string `json:"tag_name"`
+		Assets  []struct {
+			Name   string `json:"name"`
+			Digest string `json:"digest"`
+		} `json:"assets"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", fmt.Errorf("query latest release at %s: %w", apiURL, err)
+		return nil, fmt.Errorf("query latest release at %s: %w", apiURL, err)
 	}
 	if strings.TrimSpace(payload.TagName) == "" {
-		return "", fmt.Errorf("query latest release at %s: response has no tag_name", apiURL)
+		return nil, fmt.Errorf("query latest release at %s: response has no tag_name", apiURL)
 	}
-	return strings.TrimSpace(payload.TagName), nil
+	info := &ReleaseInfo{Tag: strings.TrimSpace(payload.TagName), Digests: map[string]string{}}
+	for _, a := range payload.Assets {
+		d, ok := strings.CutPrefix(strings.TrimSpace(a.Digest), "sha256:")
+		if a.Name == "" || !ok || len(d) != 64 {
+			continue
+		}
+		if _, err := hex.DecodeString(d); err != nil {
+			continue
+		}
+		info.Digests[a.Name] = strings.ToLower(d)
+	}
+	return info, nil
 }
 
 // SameCLIVersion reports whether current and latest name the same release.
@@ -125,13 +188,16 @@ func UpdateTarget() (string, error) {
 	return DefaultInstallPath()
 }
 
-// UpdateTempPath returns the staging file for a download: paper_temp
-// next to dest (paper_temp.exe on Windows).
+// UpdateTempPath returns the staging file for a download:
+// paper_temp.<pid> next to dest (paper_temp.<pid>.exe on Windows). The PID
+// suffix keeps concurrent `paper update` processes from interleaving into
+// one file; each process removes its own staging file on graceful failure
+// paths, so only a violently killed download can orphan one.
 func UpdateTempPath(dest string) string {
 	dir := filepath.Dir(dest)
-	name := "paper_temp"
+	name := fmt.Sprintf("paper_temp.%d", os.Getpid())
 	if filepath.Ext(dest) == ".exe" {
-		name = "paper_temp.exe"
+		name += ".exe"
 	}
 	return filepath.Join(dir, name)
 }
@@ -140,7 +206,7 @@ func UpdateTempPath(dest string) string {
 // leaving a truncated binary behind).
 func DownloadFile(url, dest string, client *http.Client) error {
 	if client == nil {
-		client = http.DefaultClient
+		client = defaultHTTPClient()
 	}
 	resp, err := client.Get(url) //nolint:gosec,noctx // URL is the release asset URL shown to the user
 	if err != nil {
@@ -167,30 +233,146 @@ func DownloadFile(url, dest string, client *http.Client) error {
 	return nil
 }
 
-// ApplyUpdate atomically swaps the staged temp file over dest.
+// VerifyFileSHA256 checks path against a lowercase hex SHA256 digest.
+func VerifyFileSHA256(path, expectedHex string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("verify %s: %w", path, err)
+	}
+	defer f.Close() //nolint:errcheck // hash already finalized or copy already failed
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("verify %s: %w", path, err)
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); got != strings.ToLower(strings.TrimSpace(expectedHex)) {
+		return fmt.Errorf("verify %s: checksum mismatch (not the published release binary?)", path)
+	}
+	return nil
+}
+
+// ApplyUpdate swaps the staged temp file over dest. The plain rename
+// covers Unix (running binaries can be replaced) and any non-running file
+// on Windows. A running Windows .exe cannot be overwritten in place, so
+// there it is first renamed aside to dest+".old" — renaming a running exe
+// only touches the directory entry, the running image stays mapped — and
+// the staged file is moved into the freed name. The .old cannot be deleted
+// while this process still runs from it, so the next update removes it
+// first (best effort); at most one .old ever lingers.
 func ApplyUpdate(dest, tmp string) error {
+	return SwapStaged(tmp, dest, 0)
+}
+
+// SwapStaged swaps the staged temp file over dest, retrying a direct rename
+// for retryFor first (the wait is only useful on Windows, where the rename
+// starts failing while the parent is still exiting and starts succeeding
+// once it is gone; elsewhere the first attempt already decides). When the
+// wait is exhausted it falls back to the rename-aside swap, which also
+// succeeds against a running Windows exe. A non-positive retryFor skips the
+// wait and goes straight to single-attempt-then-fallback.
+func SwapStaged(tmp, dest string, retryFor time.Duration) error {
 	if err := os.Chmod(tmp, 0o755); err != nil {
 		return fmt.Errorf("chmod %s: %w", tmp, err)
 	}
+	if runtime.GOOS == "windows" && retryFor > 0 {
+		deadline := time.Now().Add(retryFor)
+		for {
+			if err := os.Rename(tmp, dest); err == nil {
+				return nil
+			}
+			if !time.Now().Before(deadline) {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	} else if err := os.Rename(tmp, dest); err == nil {
+		return nil
+	}
+	old := dest + ".old"
+	_ = os.Remove(old) // leftover from a previous update, if any
+	if err := os.Rename(dest, old); err != nil {
+		return fmt.Errorf("replace %s (staged update kept at %s): %w", dest, tmp, err)
+	}
 	if err := os.Rename(tmp, dest); err != nil {
+		_ = os.Rename(old, dest) // roll back: renaming back is allowed too
 		return fmt.Errorf("replace %s (staged update kept at %s): %w", dest, tmp, err)
 	}
 	return nil
 }
 
-// SelfUpdate downloads url into a paper_temp file next to dest, then
-// replaces dest with it. It mirrors install/*.sh + install/windows.bat
-// (same repo, same latest-download URL, same ~/.local/bin destination
-// family) but runs from inside the CLI.
-func SelfUpdate(dest, url string, client *http.Client) (string, error) {
-	tmp := UpdateTempPath(dest)
-	if err := DownloadFile(url, tmp, client); err != nil {
-		return "", err
+// spawnFinishHelper re-executes this binary as the hidden __finish-update
+// command. The helper IS paper itself, so the install stays one file and
+// there is no generated script to tamper with; detach() lets it outlive the
+// parent process that spawned it.
+func spawnFinishHelper(tmp, dest, digest string) (*exec.Cmd, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("resolve current executable: %w", err)
 	}
-	if err := ApplyUpdate(dest, tmp); err != nil {
-		return tmp, err
+	cmd := exec.Command(exe, "__finish-update", tmp, dest, digest)
+	cmd.Stdin = nil
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	detach(cmd)
+	return cmd, nil
+}
+
+// runHelperSync waits for a spawned helper and returns its exit code. The
+// helper prints its own outcome to our (inherited) stdio, so there is
+// nothing left to print here. A helper killed by a signal has no real exit
+// code (Go reports -1); that maps to 1, not 255.
+func runHelperSync(cmd *exec.Cmd) int {
+	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() >= 0 {
+			return exit.ExitCode()
+		}
+		errLine(err)
+		return 1
 	}
-	return dest, nil
+	return 0
+}
+
+// runFinishUpdate implements the hidden `paper __finish-update` command: the
+// second half of a self-update, run by a re-executed copy of this binary.
+// It performs no version check (the parent already decided) and verifies the
+// staged bytes before swapping them in.
+func runFinishUpdate(args []string) int {
+	if len(args) != 3 || args[0] == "" || args[1] == "" {
+		fmt.Fprintln(os.Stderr, red("error:")+" usage: paper __finish-update TMP DEST SHA256")
+		return 2
+	}
+	tmp, dest, digest := filepath.Clean(args[0]), filepath.Clean(args[1]), args[2]
+	if !filepath.IsAbs(tmp) || !filepath.IsAbs(dest) || filepath.Dir(tmp) != filepath.Dir(dest) {
+		fmt.Fprintln(os.Stderr, red("error:")+" refusing __finish-update: tmp and dest must be absolute paths in the same directory")
+		return 2
+	}
+	if digest != "" {
+		if err := VerifyFileSHA256(tmp, digest); err != nil {
+			errLine(err)
+			return 1
+		}
+	} else if st, err := os.Stat(tmp); err != nil || st.IsDir() || st.Size() == 0 {
+		errLine(fmt.Errorf("refusing __finish-update: staged file missing or empty: %s", tmp))
+		return 1
+	}
+	if _, err := os.Stat(dest); err != nil {
+		errLine(fmt.Errorf("refusing __finish-update: destination missing: %s", dest))
+		return 1
+	}
+	if err := SwapStaged(tmp, dest, finishRetryFor); err != nil {
+		errLine(err)
+		return 1
+	}
+	// Sweep a stale .old from the pre-helper era (or any earlier swap).
+	// Best effort: when the fallback path just created one, this process
+	// still runs from that image, so the remove fails and the note below
+	// correctly reports it as kept.
+	_ = os.Remove(dest + ".old")
+	fmt.Printf("%s paper to %s\n%s\n", green("updated"), lightBlue(dest), gray("run `paper version` to confirm the new version."))
+	if _, err := os.Stat(dest + ".old"); err == nil {
+		fmt.Printf("%s\n", gray("old binary kept at "+dest+".old (removed on the next update)."))
+	}
+	return 0
 }
 
 // VersionText renders the `paper version` output.

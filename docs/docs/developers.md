@@ -16,6 +16,8 @@ paper-cli/
 │   ├── java.go            # memory parsing, java resolution, command building
 │   ├── version.go         # reading the embedded bundle out of the binary
 │   ├── update.go          # paper version / paper update (self-update, CLI version)
+│   ├── detach_unix.go     # helper detach: new session so signals miss it
+│   ├── detach_windows.go  # helper detach: no-op (children outlive parents)
 │   ├── style.go           # ANSI colors (white, light blue, gray)
 │   ├── console_windows.go # enables ANSI colors on Windows consoles
 │   ├── console_other.go   # no-op on other platforms
@@ -101,9 +103,20 @@ local git tag, else `dev`). Local tags are only a fallback because they
 can be stale or never pushed. `VersionText` prints the bundled
 PaperMC version next to it. The updater mirrors the install scripts
 (same repo, same `releases/latest/download` URL, per-OS asset names) but
-runs from inside the CLI: it downloads into a `paper_temp` file next to
-the running binary (`UpdateTempPath`), then atomically renames it over
-the binary (`ApplyUpdate`). The target is the resolved current
+runs from inside the CLI: it downloads into a `paper_temp.<pid>` file next to
+the running binary (`UpdateTempPath` — PID-suffixed so concurrent updates
+don't share a file), verifies its SHA256 against the
+digest published with the release (`VerifyFileSHA256`, from
+`FetchReleaseInfo`), then swaps it over the binary. The swap runs in a
+helper, which is just this binary re-executed as the hidden
+`__finish-update` command (`spawnFinishHelper`, `runFinishUpdate`) — so
+the install stays one file and there is no generated script to tamper
+with. The helper waits out the parent's exit with a retry loop
+(`SwapStaged`, no Windows API needed: the file lock itself is the signal)
+and falls back to the rename-aside swap against a still-running exe. The
+parent waits for the helper everywhere except Windows, where it must exit
+first and hands off instead. `detach_unix.go` / `detach_windows.go` let
+the helper outlive terminal signals. The target is the resolved current
 executable (`UpdateTarget`), falling back to `~/.local/bin/paper`.
 
 **style.go, console_windows.go, console_other.go** — Bold/white/light

@@ -74,6 +74,10 @@ func Run(argv []string) int {
 		return runVersion(args[1:])
 	case "update":
 		return runUpdate(args[1:])
+	case "__finish-update":
+		// Hidden second half of `paper update` (see src/update.go): never
+		// shown in help, run by a re-executed copy of this binary.
+		return runFinishUpdate(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "%s unknown command %q\n\n%s", red("error:"), args[0], HelpText())
 		return 2
@@ -262,19 +266,54 @@ func runUpdate(args []string) int {
 	// latest release, say so instead of re-downloading. When the check
 	// fails (offline, rate-limited), fall through to the download, which
 	// is the safe default.
-	if latest, lerr := LatestReleaseTag(LatestReleaseAPI, nil); lerr == nil && SameCLIVersion(CLIVersion, latest) {
+	info, _ := FetchReleaseInfo(LatestReleaseAPI, nil)
+	if info != nil && SameCLIVersion(CLIVersion, info.Tag) {
 		fmt.Printf("%s %s is already up to date.\n", green("paper"), lightBlue(CLIVersion))
 		return 0
 	}
+	digest, label := "", "latest release"
+	if info != nil {
+		digest = info.DigestFor(asset)
+		if info.Tag != "" {
+			label = info.Tag
+		}
+	}
 	fmt.Printf("%s %s %s\n", gray("downloading"), lightBlue(asset), gray("from "+url))
 	fmt.Printf("%s %s\n", gray("to:"), lightBlue(dest))
-	if _, err := SelfUpdate(dest, url, nil); err != nil {
+	tmp := UpdateTempPath(dest)
+	if err := DownloadFile(url, tmp, nil); err != nil {
+		_ = os.Remove(tmp) // our own PID-suffixed file; partial download
 		errLine(err)
 		return 1
 	}
-	// NOTE: do not print CLIVersion here: it is this (old) process's baked
-	// version, not the downloaded binary's. The file on disk is new, but
-	// this process image is still the old one.
-	fmt.Printf("%s paper to %s\n%s\n", green("updated"), lightBlue(dest), gray("run `paper version` to confirm the new version."))
-	return 0
+	if digest != "" {
+		if err := VerifyFileSHA256(tmp, digest); err != nil {
+			_ = os.Remove(tmp) // proven-bad bytes; never spawn from them
+			errLine(err)
+			return 1
+		}
+		fmt.Printf("%s %s %s\n", gray("downloaded"), lightBlue(label), gray("(checksum verified)"))
+	} else {
+		fmt.Printf("%s %s\n", gray("downloaded"), lightBlue(label))
+	}
+	cmd, err := spawnFinishHelper(tmp, dest, digest)
+	if err != nil {
+		_ = os.Remove(tmp)
+		errLine(err)
+		return 1
+	}
+	if runtime.GOOS == "windows" {
+		// The helper cannot swap while this process is alive, so it runs
+		// after we exit: start it detached and hand off honestly.
+		if err := cmd.Start(); err != nil {
+			_ = os.Remove(tmp)
+			errLine(err)
+			return 1
+		}
+		fmt.Printf("%s\n%s\n", gray("download handed to a helper; paper will exit now."), gray("run `paper version` to confirm."))
+		return 0
+	}
+	// Elsewhere the swap has no lock to wait out, so wait for the helper
+	// and report its result: the same synchronous behavior as before.
+	return runHelperSync(cmd)
 }

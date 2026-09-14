@@ -95,19 +95,24 @@ paper version
 **paper update** — self-updates to the latest release. It downloads the
 right binary for your OS from
 `github.com/CHE3MZ/paper-cli/releases/latest` (the same file the
-install scripts fetch), stages it as `paper_temp` next to the binary
-you're running, then replaces that binary with the download. Same
-sources and destinations as the install scripts, run from inside the
-CLI. If you're already on the latest release it just says so and
-downloads nothing.
+install scripts fetch), stages it as `paper_temp.<pid>` next to the binary
+you're running, then swaps it in. The swap itself runs in a helper —
+which is just `paper` re-executed with a hidden internal command, so the
+install stays one file and there is no script to tamper with. The download
+is checksum-verified against the digest published with the release before
+anything is swapped.
 
 ```
 paper update
 ```
 
-One platform note: on Windows a running `.exe` can't replace itself, so
-if the swap fails the download stays at `paper_temp.exe` next to it and
-the error tells you where — copy it over by hand once `paper` has exited.
+If you're already on the latest release it just says so and downloads
+nothing. On Linux/macOS the helper runs synchronously (same `updated`
+confirmation as always); on Windows a running `.exe` can't be overwritten
+in place, so there the helper runs detached after `paper` exits and prints
+the result itself — run `paper version` to confirm. Either way, nothing is
+left behind: the staging file is consumed by the swap, and no helper or
+script file remains.
 
 ## Colors
 
