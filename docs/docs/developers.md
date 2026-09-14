@@ -96,11 +96,14 @@ CLI's own release version: it defaults to `dev` and is stamped at build
 time with `-ldflags "-X
 github.com/CHE3MZ/paper-cli/src.CLIVersion=<tag>"`. `scripts/build.sh`
 and `scripts/build.ps1` do this for you (they use `$PAPER_CLI_VERSION`
-when set — the `release-all` workflow sets it to the tag being released
-— else the latest GitHub release tag (what
+when set — the `release-all` workflow sets it to the tag being released,
+CI sets it to `dev` so test artifacts never claim a release — else the
+latest GitHub release tag (what
 `github.com/CHE3MZ/paper-cli/releases/latest` points at), else the latest
 local git tag, else `dev`). Local tags are only a fallback because they
-can be stale or never pushed. `VersionText` prints the bundled
+can be stale or never pushed. A dirty tree appends `-dirty`, so a dev
+build can't masquerade as a release (and `paper update` won't wrongly call
+it up to date). `VersionText` prints the bundled
 PaperMC version next to it. The updater mirrors the install scripts
 (same repo, same `releases/latest/download` URL, per-OS asset names) but
 runs from inside the CLI: it downloads into a `paper_temp.<pid>` file next to
@@ -111,9 +114,11 @@ digest published with the release (`VerifyFileSHA256`, from
 helper, which is just this binary re-executed as the hidden
 `__finish-update` command (`spawnFinishHelper`, `runFinishUpdate`) — so
 the install stays one file and there is no generated script to tamper
-with. The helper waits out the parent's exit with a retry loop
-(`SwapStaged`, no Windows API needed: the file lock itself is the signal)
-and falls back to the rename-aside swap against a still-running exe. The
+with. The swap (`SwapStaged`) tries a direct rename, then the rename-aside
+swap against a still-running exe — deliberately no wait-and-retry loop and
+no Windows API: on Windows the helper itself runs from dest, so a direct
+rename can never succeed while it lives, while the aside swap works
+immediately. The
 parent waits for the helper everywhere except Windows, where it must exit
 first and hands off instead. `detach_unix.go` / `detach_windows.go` let
 the helper outlive terminal signals. The target is the resolved current

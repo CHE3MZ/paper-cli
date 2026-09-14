@@ -110,9 +110,11 @@ If you're already on the latest release it just says so and downloads
 nothing. On Linux/macOS the helper runs synchronously (same `updated`
 confirmation as always); on Windows a running `.exe` can't be overwritten
 in place, so there the helper runs detached after `paper` exits and prints
-the result itself — run `paper version` to confirm. Either way, nothing is
-left behind: the staging file is consumed by the swap, and no helper or
-script file remains.
+the result itself — run `paper version` to confirm. On Linux/macOS nothing
+is left behind: the staging file is consumed by the swap. On Windows the
+helper itself runs from the binary being replaced, so every update renames
+it aside to `paper.exe.old` first; that file is removed on your next
+update, and at most one ever lingers.
 
 ## Colors
 

@@ -26,6 +26,11 @@ jobs:
         run: go test ./...
 
       - name: Build
+        env:
+          # CI artifacts are unreleased code: never stamp them with a real
+          # release tag (that would also make `paper update` wrongly report
+          # "already up to date" when run from one).
+          PAPER_CLI_VERSION: dev
         run: sh scripts/build.sh
 
       - name: Upload binary artifact

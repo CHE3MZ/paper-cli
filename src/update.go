@@ -24,29 +24,36 @@ import (
 //
 // scripts/build.sh and scripts/build.ps1 do this automatically. Resolution
 // order: $PAPER_CLI_VERSION when set (the release workflow sets it to the
-// tag being released), otherwise the latest GitHub release tag
+// tag being released, CI sets it to "dev" so test artifacts never claim a
+// release), otherwise the latest GitHub release tag
 // (api.github.com/repos/CHE3MZ/paper-cli/releases/latest, i.e. what
 // github.com/CHE3MZ/paper-cli/releases/latest redirects to), otherwise the
 // latest local git tag, otherwise "dev". Local tags are only a fallback
-// because they can be stale or unpushed.
+// because they can be stale or unpushed. A dirty tree appends "-dirty", so
+// a dev build can't masquerade as a release (and `paper update` won't
+// wrongly call it up to date).
 // Plain `go build` without ldflags leaves the "dev" default.
 var CLIVersion = "dev"
 
 // UpdateRepo is the GitHub repo self-update downloads from.
 const UpdateRepo = "CHE3MZ/paper-cli"
 
-// httpTimeout bounds every self-update network call (API + download). The
-// stdlib default client has no timeout, which would hang `paper update`
-// forever on a stalled connection.
-const httpTimeout = 60 * time.Second
-
-// finishRetryFor bounds the helper's wait for the parent to exit before it
-// falls back to the rename-aside swap.
-const finishRetryFor = 30 * time.Second
+// apiTimeout bounds release-API calls; downloadTimeout bounds the ~180MB
+// binary download. The download limit is generous on purpose: slow
+// connections need minutes, and a truly stalled one still fails instead of
+// hanging forever (the stdlib default client has no timeout at all).
+const apiTimeout = 30 * time.Second
+const downloadTimeout = 15 * time.Minute
 
 // defaultHTTPClient is used whenever callers pass a nil client.
 func defaultHTTPClient() *http.Client {
-	return &http.Client{Timeout: httpTimeout}
+	return &http.Client{Timeout: apiTimeout}
+}
+
+// downloadHTTPClient bounds the release binary download separately: the
+// API timeout would abort slow-but-healthy downloads mid-stream.
+func downloadHTTPClient() *http.Client {
+	return &http.Client{Timeout: downloadTimeout}
 }
 
 // LatestReleaseAPI is the GitHub API endpoint that reports the latest
@@ -206,7 +213,7 @@ func UpdateTempPath(dest string) string {
 // leaving a truncated binary behind).
 func DownloadFile(url, dest string, client *http.Client) error {
 	if client == nil {
-		client = defaultHTTPClient()
+		client = downloadHTTPClient()
 	}
 	resp, err := client.Get(url) //nolint:gosec,noctx // URL is the release asset URL shown to the user
 	if err != nil {
@@ -256,35 +263,23 @@ func VerifyFileSHA256(path, expectedHex string) error {
 // there it is first renamed aside to dest+".old" — renaming a running exe
 // only touches the directory entry, the running image stays mapped — and
 // the staged file is moved into the freed name. The .old cannot be deleted
-// while this process still runs from it, so the next update removes it
-// first (best effort); at most one .old ever lingers.
+// while a process still runs from it, so the next update removes it first
+// (best effort); at most one .old ever lingers.
 func ApplyUpdate(dest, tmp string) error {
-	return SwapStaged(tmp, dest, 0)
+	return SwapStaged(tmp, dest)
 }
 
-// SwapStaged swaps the staged temp file over dest, retrying a direct rename
-// for retryFor first (the wait is only useful on Windows, where the rename
-// starts failing while the parent is still exiting and starts succeeding
-// once it is gone; elsewhere the first attempt already decides). When the
-// wait is exhausted it falls back to the rename-aside swap, which also
-// succeeds against a running Windows exe. A non-positive retryFor skips the
-// wait and goes straight to single-attempt-then-fallback.
-func SwapStaged(tmp, dest string, retryFor time.Duration) error {
+// SwapStaged swaps the staged temp file over dest: one direct rename
+// attempt, then the rename-aside fallback. There is deliberately no
+// wait-and-retry loop: on Windows the helper itself runs from dest, so a
+// direct rename can never succeed while it lives (retrying would just burn
+// 30s before falling back anyway); the aside swap works against running
+// images immediately, which the parent's exit is not even needed for.
+func SwapStaged(tmp, dest string) error {
 	if err := os.Chmod(tmp, 0o755); err != nil {
 		return fmt.Errorf("chmod %s: %w", tmp, err)
 	}
-	if runtime.GOOS == "windows" && retryFor > 0 {
-		deadline := time.Now().Add(retryFor)
-		for {
-			if err := os.Rename(tmp, dest); err == nil {
-				return nil
-			}
-			if !time.Now().Before(deadline) {
-				break
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-	} else if err := os.Rename(tmp, dest); err == nil {
+	if err := os.Rename(tmp, dest); err == nil {
 		return nil
 	}
 	old := dest + ".old"
@@ -359,7 +354,7 @@ func runFinishUpdate(args []string) int {
 		errLine(fmt.Errorf("refusing __finish-update: destination missing: %s", dest))
 		return 1
 	}
-	if err := SwapStaged(tmp, dest, finishRetryFor); err != nil {
+	if err := SwapStaged(tmp, dest); err != nil {
 		errLine(err)
 		return 1
 	}

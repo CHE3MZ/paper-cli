@@ -95,7 +95,7 @@ func TestDownloadAndSwapReplacesBinary(t *testing.T) {
 	if err := src.DownloadFile(srv.URL+"/paper-linux", tmp, nil); err != nil {
 		t.Fatalf("DownloadFile: %v", err)
 	}
-	if err := src.SwapStaged(tmp, dest, 0); err != nil {
+	if err := src.SwapStaged(tmp, dest); err != nil {
 		t.Fatalf("SwapStaged: %v", err)
 	}
 	got, err := os.ReadFile(dest)
@@ -450,7 +450,7 @@ func TestConcurrentUpdatesDontInterleave(t *testing.T) {
 				errs[i] = err
 				return
 			}
-			if err := src.SwapStaged(tmp, dest, 0); err != nil {
+			if err := src.SwapStaged(tmp, dest); err != nil {
 				errs[i] = err
 				return
 			}
