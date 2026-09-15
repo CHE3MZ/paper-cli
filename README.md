@@ -15,10 +15,17 @@ paper delete ./my-server  # wipe everything but paper.jar
 
 ```bat
 install\windows.bat
+# or
+irm https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/windows.bat | cmd
 ```
 ```sh
-sh install/macos.sh  # macOS -> ~/.local/bin/paper
-sh install/linux.sh  # Linux -> ~/.local/bin/paper
+sh install/macos.sh
+# or
+curl -fsSL https://raw.githubusercontent.com/USER/paper-cli/master/install/macos.sh | bash
+
+sh install/linux.sh
+or
+curl -fsSL https://raw.githubusercontent.com/USER/paper-cli/master/install/linux.sh | bash
 ```
 
 ### Uninstall
@@ -47,6 +54,12 @@ Full guides per platform, the command reference, and developer
 docs are in **`docs/`** (mkdocs project, published as the project site).
 
 Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Experimental
+
+The main experimental branch is the "dev" branch, any features that are deemed 
+unpolished or unready/not production-ready will be worked on inside of that 
+branch specifically in order to keep the master branch clean.
 
 # License
 
