@@ -21,21 +21,29 @@ irm https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/windows.ba
 ```sh
 sh install/macos.sh
 # or
-curl -fsSL https://raw.githubusercontent.com/USER/paper-cli/master/install/macos.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/macos.sh | bash
 
 sh install/linux.sh
-or
-curl -fsSL https://raw.githubusercontent.com/USER/paper-cli/master/install/linux.sh | bash
+# or
+curl -fsSL https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/linux.sh | bash
 ```
 
 ### Uninstall
 
 ```bat
 install\uninstall-windows.bat
+# or
+irm https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/uninstall-windows.bat | cmd
 ```
 ```sh
 sh install/uninstall-macos.sh
+# or
+curl -fsSL https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/uninstall-macos.sh | bash
+
 sh install/uninstall-linux.sh
+# or
+curl -fsSL https://raw.githubusercontent.com/CHE3MZ/paper-cli/master/install/uninstall-linux.sh | bash
+
 ```
 
 ## Build
