@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Documentation for Paper CLI tool.">
+    <meta name="author" content="CHE3MZ">
+    <link rel="canonical" href="https://che3mz.github.io/paper-cli/">
+    <link rel="shortcut icon" href="img/favicon.ico">
+
+    
+    <title>Home - Paper CLI</title>
+    
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/all.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/v4-shims.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/hack-font@3.3.0/build/web/hack.min.css">
+    <link href='//rsms.me/inter/inter.css' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,600,700&subset=latin-ext,latin' rel='stylesheet' type='text/css'>
+    <link href="css/bootstrap-custom.min.css" rel="stylesheet">
+    <link href="css/base.min.css" rel="stylesheet">
+    <link href="css/cinder.min.css" rel="stylesheet">
+
+    
+        
+        <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/styles/github.min.css">
+        
+    
+    <link href="assets/dark-mode.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+            <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+        <![endif]-->
+
+    
+
+     
+</head>
+
+<body class="homepage" >
+
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+
+        <!-- Collapsed navigation -->
+        <div class="navbar-header">
+            <!-- Expander button -->
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            
+
+            <!-- Main title -->
+
+            
+              <a class="navbar-brand" href=".">Paper CLI</a>
+            
+        </div>
+
+        <!-- Expanded navigation -->
+        <div class="navbar-collapse collapse">
+                <!-- Main navigation -->
+                <ul class="nav navbar-nav">
+                
+                
+                    <li class="active">
+                        <a href=".">Home</a>
+                    </li>
+                
+                
+                
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Platform <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                        
+                            
+<li >
+    <a href="windows/">Windows</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="macos/">macOS</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="linux/">Linux</a>
+</li>
+
+                        
+                        </ul>
+                    </li>
+                
+                
+                
+                    <li >
+                        <a href="developers/">Developers</a>
+                    </li>
+                
+                
+                
+                    <li >
+                        <a href="contribution/">Contributing</a>
+                    </li>
+                
+                
+                </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                            <i class="fas fa-search"></i> Search
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://github.com/CHE3MZ/paper-cli/edit/master/docs/index.md"><i class="fab fa-github"></i> View on GitHub</a>
+                    </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+    <div class="container">
+        
+        
+        <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="first-level active"><a href="#paper-cli">Paper CLI</a></li>
+            <li class="second-level"><a href="#install">Install</a></li>
+                
+                <li class="third-level"><a href="#uninstall">Uninstall</a></li>
+            <li class="second-level"><a href="#quickstart">Quickstart</a></li>
+                
+            <li class="second-level"><a href="#commands">Commands</a></li>
+                
+            <li class="second-level"><a href="#colors">Colors</a></li>
+                
+            <li class="second-level"><a href="#why-offline">Why offline?</a></li>
+                
+            <li class="second-level"><a href="#legal-in-brief">Legal in brief</a></li>
+                
+    </ul>
+</div></div>
+        <div class="col-md-9" role="main">
+
+<p><img src="images/logo.png" alt="Paper logo" width="320" /></p>
+<h1 id="paper-cli">Paper CLI</h1>
+<hr />
+<p>Paper CLI is a small tool that deploys PaperMC servers. The whole thing is
+one binary called <code>paper</code>, and it works offline: the server files are packed
+inside the binary itself, so creating a new server is just unpacking — no
+downloads, no installers, no browser.</p>
+<p>If you just want to run a server, you only need three commands. Everything
+else in these docs is detail you can read when you need it.</p>
+<h2 id="install">Install</h2>
+<pre><code>install\windows.bat
+sh install/macos.sh  # macOS -&gt; ~/.local/bin/paper
+sh install/linux.sh  # Linux -&gt; ~/.local/bin/paper
+</code></pre>
+<h3 id="uninstall">Uninstall</h3>
+<pre><code>install\uninstall-windows.bat
+sh install/uninstall-macos.sh
+sh install/uninstall-linux.sh
+</code></pre>
+<h2 id="quickstart">Quickstart</h2>
+<pre><code>paper new ./my-server     # create a server
+paper run ./my-server     # run it (java -jar paper.jar, basically)
+paper delete ./my-server  # wipe everything but paper.jar when you're done
+</code></pre>
+<p>Leave out the path and the command uses the folder you're standing in:</p>
+<pre><code>cd my-server
+paper run
+</code></pre>
+<p>Pick your platform on the left for setup instructions (Java, getting the
+binary), then come back here for the full command list.</p>
+<h2 id="commands">Commands</h2>
+<p><strong>paper help</strong> — prints the help text. <code>paper --help</code> and <code>paper -h</code> do the
+same thing.</p>
+<p><strong>paper new . | PATH</strong> — creates a new server here (<code>.</code>) or at <code>PATH</code>.
+The folder is created if it doesn't exist. If a <code>paper.jar</code> is already
+there, it refuses — pass <code>--force</code> (or <code>-f</code>) to overwrite it.</p>
+<p><strong>paper run [PATH]</strong> — starts the server. Under the hood this runs
+<code>java -jar paper.jar</code> inside the server folder, with your terminal attached
+so you get the console, commands, and Ctrl+C handling for free.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--nogui</code></td>
+<td>Appends <code>nogui</code>, so no server GUI window pops up</td>
+</tr>
+<tr>
+<td><code>--memory, -m &lt;n&gt;[mb\|gb]</code></td>
+<td>Heap size, e.g. <code>--memory=4gb</code> or <code>-m=512mb</code> (sets <code>-Xms</code> and <code>-Xmx</code> to the same value)</td>
+</tr>
+<tr>
+<td><code>--optimized, -o</code></td>
+<td>Shortcut for 4GB of heap. Ignored if you also pass <code>--memory</code></td>
+</tr>
+<tr>
+<td><code>--java &lt;path&gt;</code></td>
+<td>Use a specific Java binary instead of the one on your PATH</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td>Print the java command without running it — handy for checking flags</td>
+</tr>
+</tbody>
+</table>
+<pre><code>paper run ./my-server --nogui -m=2gb
+paper run ./my-server -o
+paper run --dry-run --memory=512mb
+</code></pre>
+<p><strong>paper delete [PATH]</strong> — deletes everything in the server folder
+<em>except</em> <code>paper.jar</code>: worlds, configs, logs, all of it. It asks for
+confirmation first, unless you pass <code>--confirm</code> (or <code>-y</code>). As a safety
+rule, it refuses to touch a folder with no <code>paper.jar</code> in it.</p>
+<pre><code>paper delete --confirm
+paper delete ./my-server -y
+</code></pre>
+<h2 id="colors">Colors</h2>
+<p>Output is colored on a real terminal (white, light blue, gray) and plain
+everywhere else, so pipes and log files stay clean. <code>PAPER_COLOR=1</code> forces
+colors on, <code>NO_COLOR=1</code> forces them off.</p>
+<h2 id="why-offline">Why offline?</h2>
+<p>A normal Paper setup downloads its libraries and version files on first
+launch. Paper CLI ships those files inside the binary instead
+(<code>paper.jar</code>, <code>libraries/</code>, <code>cache/</code>, configs), so <code>paper new</code> works on a
+machine with no internet. The only things left out are files the server
+recreates by itself on boot (<code>versions/</code>, <code>logs/</code>, plugin caches) — which
+also keeps the binary smaller (~177MB instead of ~244MB).</p>
+<p>Want to know how all of this is put together? The
+<a href="developers/">Developers</a> page walks through the source file by file.</p>
+<h2 id="legal-in-brief">Legal in brief</h2>
+<p>Your servers run PaperMC (GPL-3.0) and Mojang's server code (proprietary).
+Running one means you accept the
+<a href="https://aka.ms/MinecraftEULA">Minecraft EULA</a> — note that <code>paper new</code>
+pre-accepts it in <code>eula.txt</code> so the server starts right away. The full
+attribution, the GPL copy, and the redistribution tradeoff of the offline
+bundle are documented in <code>NOTICE.md</code> in the repo. This project isn't
+affiliated with Mojang, Microsoft, or PaperMC.</p>
+<p><img src="images/logo-small.png" alt="Paper logo small" width="96" /></p></div>
+        
+        
+    </div>
+
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="js/bootstrap-3.0.3.min.js"></script>
+
+    
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/highlight.min.js"></script>
+        
+    <script>hljs.initHighlightingOnLoad();</script>
+    
+
+    <script>var base_url = "."</script>
+    
+    <script src="js/base.js"></script>
+    <script src="assets/dark-mode.js"></script>
+    <script src="search/main.js"></script>
+
+    <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form>
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+    </body>
+
+</html>
+
+<!--
+MkDocs version : 1.6.1
+Build Date UTC : 2026-09-15 21:29:10.100340+00:00
+-->

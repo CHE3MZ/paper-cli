@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Documentation for Paper CLI tool.">
+    <meta name="author" content="CHE3MZ">
+    <link rel="canonical" href="https://che3mz.github.io/paper-cli/developers/">
+    <link rel="shortcut icon" href="../img/favicon.ico">
+
+    
+    <title>Developers - Paper CLI</title>
+    
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/all.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/v4-shims.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/hack-font@3.3.0/build/web/hack.min.css">
+    <link href='//rsms.me/inter/inter.css' rel='stylesheet' type='text/css'>
+    <link href='//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,600,700&subset=latin-ext,latin' rel='stylesheet' type='text/css'>
+    <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+    <link href="../css/base.min.css" rel="stylesheet">
+    <link href="../css/cinder.min.css" rel="stylesheet">
+
+    
+        
+        <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/styles/github.min.css">
+        
+    
+    <link href="../assets/dark-mode.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+            <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+        <![endif]-->
+
+    
+
+     
+</head>
+
+<body>
+
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+
+        <!-- Collapsed navigation -->
+        <div class="navbar-header">
+            <!-- Expander button -->
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            
+
+            <!-- Main title -->
+
+            
+              <a class="navbar-brand" href="..">Paper CLI</a>
+            
+        </div>
+
+        <!-- Expanded navigation -->
+        <div class="navbar-collapse collapse">
+                <!-- Main navigation -->
+                <ul class="nav navbar-nav">
+                
+                
+                    <li >
+                        <a href="..">Home</a>
+                    </li>
+                
+                
+                
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Platform <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                        
+                            
+<li >
+    <a href="../windows/">Windows</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="../macos/">macOS</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="../linux/">Linux</a>
+</li>
+
+                        
+                        </ul>
+                    </li>
+                
+                
+                
+                    <li class="active">
+                        <a href="./">Developers</a>
+                    </li>
+                
+                
+                
+                    <li >
+                        <a href="../contribution/">Contributing</a>
+                    </li>
+                
+                
+                </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                            <i class="fas fa-search"></i> Search
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://github.com/CHE3MZ/paper-cli/edit/master/docs/developers.md"><i class="fab fa-github"></i> View on GitHub</a>
+                    </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+    <div class="container">
+        
+        
+        <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="first-level active"><a href="#developers">Developers</a></li>
+            <li class="second-level"><a href="#project-structure">Project structure</a></li>
+                
+            <li class="second-level"><a href="#how-the-build-works">How the build works</a></li>
+                
+            <li class="second-level"><a href="#what-each-file-does">What each file does</a></li>
+                
+            <li class="second-level"><a href="#common-recipes">Common recipes</a></li>
+                
+            <li class="second-level"><a href="#testing">Testing</a></li>
+                
+    </ul>
+</div></div>
+        <div class="col-md-9" role="main">
+
+<h1 id="developers">Developers</h1>
+<p>This page is for people who want to read or change the source. The project
+is deliberately boring: standard library only, no frameworks, no code
+generation at runtime. If you know a little Go you can hold the whole thing
+in your head.</p>
+<h2 id="project-structure">Project structure</h2>
+<pre><code>paper-cli/
+├── cmd/paper/main.go      # CLI entrypoint (8 lines, nothing else lives here)
+├── src/                   # all application logic
+│   ├── cli.go             # command dispatch, flag parsing, help text
+│   ├── server.go          # new / run / delete implementation
+│   ├── java.go            # memory parsing, java resolution, command building
+│   ├── version.go         # reading the embedded bundle out of the binary
+│   ├── style.go           # ANSI colors (white, light blue, gray)
+│   ├── console_windows.go # enables ANSI colors on Windows consoles
+│   ├── console_other.go   # no-op on other platforms
+│   ├── embed_generated.go # generated: what got embedded at build time
+│   └── genembed/main.go   # build-time generator (JSON -&gt; bundle -&gt; embed)
+├── test/                  # go test ./test/...
+├── paper-server/1.21.11/  # the Paper template that gets bundled
+├── scripts/
+│   ├── build.ps1 / build.sh   # the build (both do the same thing)
+│   └── pull-paper-jar.sh      # downloads a fresh Paper + trims it
+├── current-build-version.json # which template version the binary uses
+└── docs/                  # these docs (mkdocs project)
+</code></pre>
+<p>The rule is simple: <code>cmd/paper/main.go</code> only calls into <code>src</code>. Everything
+else lives in <code>src</code>.</p>
+<h2 id="how-the-build-works">How the build works</h2>
+<p><code>go:embed</code> needs its file list at compile time, but which Paper version to
+embed is decided by <code>current-build-version.json</code> (<code>current-build-path</code>).
+The build scripts bridge that gap in two steps:</p>
+<ol>
+<li><code>go run ./src/genembed</code> reads the JSON, packs that template directory
+   into <code>src/bundled/bundle.tar.gz</code> (gzip, best compression), and writes
+   <code>src/embed_generated.go</code> with the <code>//go:embed</code> line plus some constants
+   (build path, version, file count, sizes).</li>
+<li><code>go build -o build/paper ./cmd/paper</code> compiles the binary with the
+   archive inside it.</li>
+</ol>
+<p>Not everything in the template is packed: <code>versions/</code>, <code>logs/</code>, and
+<code>plugins/.paper-remapped/</code> are skipped because the server recreates them
+on boot (we've booted a fresh deploy to prove it). The jars themselves are
+already compressed, so gzip only saves a few percent — the real saving is
+skipping those regenerable files.</p>
+<p>At runtime, <code>paper new</code> gunzips the archive and untars it into the target
+folder. Decompression is lossless and CRC-checked: a corrupt bundle errors
+out instead of deploying half-broken files, and tar entries are validated
+so nothing can escape the target directory.</p>
+<h2 id="what-each-file-does">What each file does</h2>
+<p><strong>cli.go</strong> — Parses <code>os.Args</code> and routes to <code>runNew</code>, <code>runRun</code>, or
+<code>runDelete</code>. Flag parsing is handwritten (no CLI library): it accepts both
+<code>--memory=4gb</code> and <code>--memory 4gb</code> forms, plus attached shorthands like
+<code>-m4gb</code>. Also owns the help text, so <code>paper help</code> always matches the real
+flags. Colors go through the helpers in <code>style.go</code>, which turn themselves
+off when output is piped.</p>
+<p><strong>server.go</strong> — The three commands:</p>
+<ul>
+<li><code>NewServer</code> refuses if <code>paper.jar</code> already exists (unless <code>--force</code>),
+  then extracts the whole bundle and guarantees an <code>eula.txt</code> exists.</li>
+<li><code>RunServer</code> checks for <code>paper.jar</code>, builds the java invocation, and
+  execs it with the server folder as working directory and your terminal
+  attached. <code>--dry-run</code> prints the command instead.</li>
+<li><code>DeleteServer</code> lists everything except <code>paper.jar</code>, asks <code>[y/N]</code> unless
+  <code>--confirm</code>, and refuses entirely if there's no <code>paper.jar</code> (so you
+  can't nuke a random folder by mistake).</li>
+</ul>
+<p><strong>java.go</strong> — <code>NormalizeMemory</code> turns <code>4gb</code>, <code>512mb</code>, <code>1024</code>, <code>2G</code> into
+Java-style <code>4G</code> / <code>512M</code> / <code>1024M</code> / <code>2G</code> (bare numbers mean megabytes).
+<code>BuildJavaCommand</code> assembles the final invocation: optional <code>-Xms</code>/<code>-Xmx</code>,
+then <code>-jar paper.jar</code>, then <code>nogui</code>. <code>--optimized</code> just fills in <code>4gb</code>
+when no explicit memory was given — explicit flags always win.</p>
+<p><strong>version.go</strong> — <code>ExtractBundled</code> (tar.gz extraction with the safety checks
+above). The <code>Embedded*</code> constants next to it record what the binary was
+built with (build path, version, file count, sizes).</p>
+<p><strong>style.go, console_windows.go, console_other.go</strong> — Bold/white/light
+blue/gray/green/red paint functions. Windows consoles need virtual-terminal
+processing switched on before ANSI codes work, which is what the
+<code>console_*.go</code> pair does (stdlib <code>syscall</code> on Windows, no-op elsewhere).</p>
+<p><strong>src/genembed/main.go</strong> — Described in "How the build works" above. Run
+it by hand any time with <code>go run ./src/genembed</code>.</p>
+<h2 id="common-recipes">Common recipes</h2>
+<p><strong>Add a run flag.</strong> Add the field to <code>RunOptions</code> in <code>java.go</code>, handle it
+in <code>BuildJavaCommand</code>, parse it in <code>runRun</code> in <code>cli.go</code>, document it in
+<code>HelpText</code> and on the Home docs page, and cover it in <code>test/java_test.go</code>.</p>
+<p><strong>Add a command.</strong> Add a <code>runX</code> function in <code>cli.go</code>, a case in the <code>Run</code>
+switch, the implementation in <code>server.go</code>, help text, docs, and tests.</p>
+<p><strong>Bump the Paper version.</strong> Edit <code>VERSION</code> in <code>scripts/pull-paper-jar.sh</code>
+and run it (needs <code>jq</code>, <code>curl</code>, <code>java</code>), point <code>current-build-path</code> in
+<code>current-build-version.json</code> at the new folder, then rebuild. <code>genembed</code>
+will fail loudly if <code>paper.jar</code> is missing, so a typo can't silently ship
+an empty bundle.</p>
+<p><strong>Change the color scheme.</strong> It's all in <code>src/style.go</code> — the ANSI codes
+at the top plus the six one-line helpers.</p>
+<h2 id="testing">Testing</h2>
+<pre><code>go run ./src/genembed   # required once per fresh clone: stages the bundle
+go test ./test/...      # without it, nothing compiles (go:embed needs the file)
+</code></pre>
+<p>Tests live in <code>test/</code> and cover memory parsing, command building, and a
+full <code>new</code> → <code>delete</code> round trip in temp dirs (including a check that the
+deployed file count matches the embedded count). Run them before opening a
+pull request, and rebuild once to make sure <code>genembed</code> is happy with your
+changes.</p></div>
+        
+        
+    </div>
+
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="../js/bootstrap-3.0.3.min.js"></script>
+
+    
+    <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.18.0/build/highlight.min.js"></script>
+        
+    <script>hljs.initHighlightingOnLoad();</script>
+    
+
+    <script>var base_url = ".."</script>
+    
+    <script src="../js/base.js"></script>
+    <script src="../assets/dark-mode.js"></script>
+    <script src="../search/main.js"></script>
+
+    <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form>
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+    </body>
+
+</html>
