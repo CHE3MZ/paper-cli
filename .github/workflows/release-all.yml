@@ -113,6 +113,19 @@ jobs:
           PAPER_CLI_VERSION: ${{ needs.version.outputs.tag }}
         run: ${{ matrix.build }}
 
+      - name: Verify clean tree
+        shell: bash
+        run: |
+          # The committed bundle constants must reproduce byte-identically
+          # from a fresh checkout (line endings, untracked dirs, Go version
+          # drift can all silently change them). Never ship a "-dirty"
+          # release: fail loudly instead so it gets fixed first.
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "error: working tree is dirty after build (regenerate + commit first):" >&2
+            git status --porcelain >&2
+            exit 1
+          fi
+
       - name: Rename binary
         shell: bash
         run: mv "${{ matrix.src }}" "build/${{ matrix.asset }}"

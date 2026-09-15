@@ -19,10 +19,10 @@ const EmbeddedVersion = "1.21.11"
 const EmbeddedFileCount = 118
 
 // EmbeddedUncompressedBytes is the total size of the template files.
-const EmbeddedUncompressedBytes = 187554407
+const EmbeddedUncompressedBytes = 187554337
 
 // EmbeddedArchiveBytes is the compressed archive size.
-const EmbeddedArchiveBytes = 181735771
+const EmbeddedArchiveBytes = 181730962
 
 // EmbeddedHasEula is true when the template dir contained an eula.txt at build time.
 const EmbeddedHasEula = true

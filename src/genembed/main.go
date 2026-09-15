@@ -189,8 +189,12 @@ const EmbeddedHasServerProps = %t
 	return nil
 }
 
-// writeBundle tars absBuild (minus skipped paths), preserving empty dirs as
-// explicit entries. It returns the file count and uncompressed byte total.
+// writeBundle tars absBuild (minus skipped paths). Directories are NOT
+// emitted as entries: extraction recreates parents via MkdirAll, and
+// emitting them made the bundle depend on untracked empty dirs (e.g. a
+// leftover plugins/ present on one machine but no fresh checkout),
+// silently breaking reproducibility — and flipping release builds to
+// "-dirty". It returns the file count and uncompressed byte total.
 func writeBundle(absBuild string, tw *tar.Writer) (int, int64, error) {
 	var files int
 	var totalBytes int64
@@ -213,11 +217,7 @@ func writeBundle(absBuild string, tw *tar.Writer) (int, int64, error) {
 			return nil
 		}
 		if d.IsDir() {
-			return tw.WriteHeader(&tar.Header{
-				Name:     relSlash + "/",
-				Typeflag: tar.TypeDir,
-				Mode:     0o755,
-			})
+			return nil
 		}
 		if !d.Type().IsRegular() {
 			return fmt.Errorf("unsupported non-regular file in template: %s", src)
